@@ -3,7 +3,7 @@ from tokens import Token, TokenType, KEYWORDS, LexError
 
 LETTER_CHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 DIGIT_CHARS = "0123456789"
-MAX_ID_LEN = 30  # LPD: até 30 caracteres
+MAX_ID_LEN = 30  # LPD: up to 30 characters
 
 class Lexer:
     def __init__(self, source: str):
@@ -33,22 +33,23 @@ class Lexer:
             return True
         return False
 
-    def _skip_ws_and_comments(self):
+    def _skip_whitespace_and_comments(self):
+        """Skip spaces/tabs/newlines and block comments delimited by { }."""
         while True:
             ch = self._peek()
-            # espaços
+            # skip whitespace
             while ch and ch.isspace():
                 self._advance()
                 ch = self._peek()
-            # comentários { ... }
+            # skip comments { ... }
             if ch == "{":
                 start_line, start_col = self.line, self.col
-                self._advance()
+                self._advance()  # consume '{'
                 while True:
                     if self._peek() == "":
-                        raise LexError("Comentário não encerrado '}'", start_line, start_col)
+                        raise LexError("Unterminated comment '}'", start_line, start_col)
                     if self._peek() == "}":
-                        self._advance()
+                        self._advance()  # consume '}'
                         break
                     self._advance()
                 continue
@@ -57,15 +58,15 @@ class Lexer:
     def _identifier_or_keyword(self):
         start_line, start_col = self.line, self.col
         lex = ""
-        # primeira letra
+        # first char must be a letter (underscore not allowed to start)
         if self._peek() not in LETTER_CHARS.replace("_", ""):
-            raise LexError("Identificador deve iniciar com letra", start_line, start_col)
+            raise LexError("Identifier must start with a letter", start_line, start_col)
         while True:
             ch = self._peek()
             if ch and (ch in LETTER_CHARS or ch in DIGIT_CHARS):
                 lex += self._advance()
                 if len(lex) > MAX_ID_LEN:
-                    raise LexError(f"Identificador excede {MAX_ID_LEN} caracteres", start_line, start_col)
+                    raise LexError(f"Identifier exceeds {MAX_ID_LEN} characters", start_line, start_col)
             else:
                 break
         low = lex.lower()
@@ -77,22 +78,22 @@ class Lexer:
         start_line, start_col = self.line, self.col
         lex = ""
         if self._peek() not in DIGIT_CHARS:
-            raise LexError("Número inválido", start_line, start_col)
+            raise LexError("Invalid number", start_line, start_col)
         while self._peek() in DIGIT_CHARS:
             lex += self._advance()
-        # LPD aceita apenas inteiros
+        # LPD accepts only integer literals
         return Token(TokenType.NUM, lex, start_line, start_col, value=int(lex))
 
     def tokens(self) -> List[Token]:
         out: List[Token] = []
         while True:
-            self._skip_ws_and_comments()
+            self._skip_whitespace_and_comments()
             ch = self._peek()
             if not ch:
                 out.append(Token(TokenType.EOF, "", self.line, self.col))
                 return out
 
-            # Dois caracteres primeiro
+            # Two-character tokens first
             if ch == ":" and self._peek(1) == "=":
                 line, col = self.line, self.col
                 self._advance(); self._advance()
@@ -114,7 +115,7 @@ class Lexer:
                 out.append(Token(TokenType.NEQ, "!=", line, col))
                 continue
 
-            # Um caractere
+            # Single-character tokens
             if ch == "=":
                 out.append(Token(TokenType.EQ, self._advance(), self.line, self.col-1)); continue
             if ch == "<":
@@ -140,10 +141,15 @@ class Lexer:
             if ch == ".":
                 out.append(Token(TokenType.DOT, self._advance(), self.line, self.col-1)); continue
 
-            # ID / palavra-chave / número
+            # ID / keyword / number
             if ch in LETTER_CHARS.replace("_", ""):
                 out.append(self._identifier_or_keyword()); continue
             if ch in DIGIT_CHARS:
                 out.append(self._number()); continue
 
-            raise LexError(f"Caractere inválido: '{ch}'", self.line, self.col)
+            # Unrecognized character
+            raise LexError(
+                f"Unrecognized symbol: '{ch}'. This symbol is not part of the LPD token set.",
+                self.line,
+                self.col,
+            )
