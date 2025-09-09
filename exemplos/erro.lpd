@@ -3,5 +3,5 @@ var x: inteiro;
 
 inicio
    x := 10;
-   escreva(x@);  { <- o '@' é inválido na linguagem LPD }
+   escreva(x@); 
 fim.
