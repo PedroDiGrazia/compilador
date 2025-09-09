@@ -33,7 +33,8 @@ class Lexer:
             return True
         return False
 
-    def _skip_ws_and_comments(self):
+    # <<< nome atualizado >>>
+    def _skip_whitespace_and_comments(self):
         while True:
             ch = self._peek()
             # espaços
@@ -86,7 +87,8 @@ class Lexer:
     def tokens(self) -> List[Token]:
         out: List[Token] = []
         while True:
-            self._skip_ws_and_comments()
+            # <<< chamada atualizada >>>
+            self._skip_whitespace_and_comments()
             ch = self._peek()
             if not ch:
                 out.append(Token(TokenType.EOF, "", self.line, self.col))
