@@ -1,0 +1,10 @@
+programa exemplo2;
+var x, y: inteiro;
+
+inicio
+   x := 10;
+   y := x + 2;
+   se y > 10 entao
+      escreva(y);
+   fim;
+fim.
