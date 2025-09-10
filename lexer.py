@@ -116,7 +116,6 @@ class Lexer:
                 out.append(Token(TokenType.NEQ, "!=", line, col))
                 continue
 
-            # Um caractere
             if ch == "=":
                 out.append(Token(TokenType.EQ, self._advance(), self.line, self.col-1)); continue
             if ch == "<":
@@ -129,6 +128,8 @@ class Lexer:
                 out.append(Token(TokenType.MINUS, self._advance(), self.line, self.col-1)); continue
             if ch == "*":
                 out.append(Token(TokenType.TIMES, self._advance(), self.line, self.col-1)); continue
+            if ch == "/": 
+                out.append(Token(TokenType.SLASH, self._advance(), self.line, self.col-1)); continue
             if ch == "(":
                 out.append(Token(TokenType.LPAREN, self._advance(), self.line, self.col-1)); continue
             if ch == ")":
@@ -141,7 +142,10 @@ class Lexer:
                 out.append(Token(TokenType.COMMA, self._advance(), self.line, self.col-1)); continue
             if ch == ".":
                 out.append(Token(TokenType.DOT, self._advance(), self.line, self.col-1)); continue
-
+            if ch == "[":  
+                out.append(Token(TokenType.LBRACKET, self._advance(), self.line, self.col-1)); continue
+            if ch == "]":   
+                out.append(Token(TokenType.RBRACKET, self._advance(), self.line, self.col-1)); continue
             # ID / palavra-chave / número
             if ch in LETTER_CHARS.replace("_", ""):
                 out.append(self._identifier_or_keyword()); continue

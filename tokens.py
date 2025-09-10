@@ -14,9 +14,11 @@ class TokenType(Enum):
     # Operadores e símbolos
     ATRIB = auto()       # :=
     PLUS = auto(); MINUS = auto(); TIMES = auto()  # + - *
+    SLASH = auto()        # /
     DIV = auto()         # div
     NEQ = auto(); EQ = auto(); LT = auto(); LE = auto(); GT = auto(); GE = auto()
     LPAREN = auto(); RPAREN = auto()
+    LBRACKET = auto(); RBRACKET = auto() 
     COLON = auto(); SEMI = auto(); COMMA = auto(); DOT = auto()
     EOF = auto()
 

@@ -27,7 +27,8 @@ def main():
             print(json.dumps(data, ensure_ascii=False, indent=2))
         else:
             for t in toks:
-                print(f"{t.line}:{t.col}\t{t.type.name}\t{t.lexeme!r}{' -> '+str(t.value) if t.value is not None else ''}")
+                s_val = f" -> {t.value}" if t.value is not None else ""
+                print(f"{t.line}:{t.col:<3}  {t.type.name:<10} {t.lexeme!r}{s_val}")
     except LexError as e:
         print(f"ERRO LÉXICO {e}")
         sys.exit(2)
