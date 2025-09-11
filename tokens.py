@@ -1,3 +1,11 @@
+# -----------------------------------------------------------------------------
+# Definições de tokens e estruturas auxiliares da linguagem LPD.
+# - TokenType: enum com todos os tipos de tokens reconhecidos.
+# - KEYWORDS: mapa de palavras-reservadas (string -> TokenType).
+# - Token: dataclass para carregar tipo, lexema, localização e valor.
+# - LexError: exceção para erros léxicos (linha/coluna).
+# -----------------------------------------------------------------------------
+
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional

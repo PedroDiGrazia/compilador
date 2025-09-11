@@ -1,3 +1,11 @@
+# -----------------------------------------------------------------------------
+# Interface de linha de comando (CLI) do analisador léxico.
+# - Lê um arquivo .lpd ou .txt do caminho passado como argumento.
+# - Invoca o Lexer para gerar tokens.
+# - Imprime os tokens em texto (ou JSON com --json).
+# - Em caso de erro léxico, mostra mensagem com linha/coluna e sai (código 2).
+# -----------------------------------------------------------------------------
+
 import sys, json, os
 from lexer import Lexer, LexError
 from tokens import TokenType

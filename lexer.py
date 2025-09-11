@@ -1,3 +1,18 @@
+# -----------------------------------------------------------------------------
+# Analisador léxico da linguagem LPD.
+# Responsabilidades:
+# - Consumir o código-fonte (string) e produzir uma lista de tokens (Token).
+# - Ignorar espaços em branco e comentários em bloco { ... }.
+# - Reconhecer palavras-reservadas, identificadores, números e símbolos.
+# - Reportar erros com linha/coluna via LexError (ex.: comentário não encerrado).
+#
+# Pontos-chave:
+#   _skip_whitespace_and_comments: pula espaços/linhas e comentários.
+#   _identifier_or_keyword: lê IDs e mapeia para KEYWORDS quando aplicável.
+#   _number: lê literais inteiros.
+#   tokens: motor principal de varredura e emissão de tokens.
+# -----------------------------------------------------------------------------
+
 from typing import List
 from tokens import Token, TokenType, KEYWORDS, LexError
 
@@ -33,15 +48,14 @@ class Lexer:
             return True
         return False
 
-    # <<< nome atualizado >>>
     def _skip_whitespace_and_comments(self):
         while True:
             ch = self._peek()
-            # espaços
+            
             while ch and ch.isspace():
                 self._advance()
                 ch = self._peek()
-            # comentários { ... }
+            
             if ch == "{":
                 start_line, start_col = self.line, self.col
                 self._advance()
@@ -58,7 +72,7 @@ class Lexer:
     def _identifier_or_keyword(self):
         start_line, start_col = self.line, self.col
         lex = ""
-        # primeira letra
+
         if self._peek() not in LETTER_CHARS.replace("_", ""):
             raise LexError("Identificador deve iniciar com letra", start_line, start_col)
         while True:
