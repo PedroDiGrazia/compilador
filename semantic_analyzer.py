@@ -1,0 +1,263 @@
+"""
+Semantic Analyzer - Analisador Semântico
+Realiza análise semântica da AST: verificação de tipos, declarações e compatibilidade.
+"""
+
+from ast_nodes import *
+from symbol_table import SymbolTable, Symbol
+
+
+class SemanticError(Exception):
+    """Exceção para erros semânticos."""
+    def __init__(self, message: str):
+        super().__init__(f"Erro semântico: {message}")
+
+
+class SemanticAnalyzer:
+    """
+    Analisador semântico que percorre a AST verificando:
+    - Declaração antes do uso
+    - Tipos compatíveis
+    - Declaração única no mesmo escopo
+    - Operadores compatíveis com tipos
+    """
+    
+    def __init__(self):
+        self.symbol_table = SymbolTable()
+        self.errors = []
+    
+    def analyze(self, program: Program) -> SymbolTable:
+        """
+        Analisa semanticamente o programa.
+        
+        Args:
+            program: Nó raiz da AST
+        
+        Returns:
+            SymbolTable: Tabela de símbolos preenchida
+        
+        Raises:
+            SemanticError: Se houver erros semânticos
+        """
+        try:
+            self.visit_program(program)
+        except SemanticError as e:
+            self.errors.append(str(e))
+        
+        if self.errors:
+            raise SemanticError("\n".join(self.errors))
+        
+        return self.symbol_table
+    
+    # ==================== VISITADORES ====================
+    
+    def visit_program(self, node: Program):
+        """Visita o nó Program."""
+        # Declarações de variáveis
+        if node.var_declarations:
+            self.visit_var_declarations(node.var_declarations)
+        
+        # TODO: Procedimentos e funções no futuro
+        
+        # Comando composto principal
+        self.visit_compound_command(node.compound_command)
+    
+    def visit_var_declarations(self, node: VarDeclarations):
+        """Visita as declarações de variáveis."""
+        for decl in node.declarations:
+            self.visit_var_declaration(decl)
+    
+    def visit_var_declaration(self, node: VarDeclaration):
+        """Visita uma declaração de variável."""
+        for identifier in node.identifiers:
+            try:
+                self.symbol_table.declare(identifier, node.var_type, 'var')
+            except Exception as e:
+                raise SemanticError(str(e))
+    
+    def visit_compound_command(self, node: CompoundCommand):
+        """Visita um comando composto."""
+        for command in node.commands:
+            self.visit_command(command)
+    
+    def visit_command(self, node: Command):
+        """Visita um comando (despacha para o tipo específico)."""
+        if isinstance(node, Assignment):
+            self.visit_assignment(node)
+        elif isinstance(node, ReadCommand):
+            self.visit_read_command(node)
+        elif isinstance(node, WriteCommand):
+            self.visit_write_command(node)
+        elif isinstance(node, IfCommand):
+            self.visit_if_command(node)
+        elif isinstance(node, WhileCommand):
+            self.visit_while_command(node)
+        elif isinstance(node, CompoundCommand):
+            self.visit_compound_command(node)
+        elif isinstance(node, EmptyCommand):
+            pass  # Comando vazio, nada a fazer
+    
+    def visit_assignment(self, node: Assignment):
+        """Visita uma atribuição."""
+        # Verifica se a variável foi declarada
+        symbol = self.symbol_table.lookup(node.identifier)
+        if symbol is None:
+            raise SemanticError(f"Variável '{node.identifier}' não foi declarada")
+        
+        if symbol.category != 'var':
+            raise SemanticError(f"'{node.identifier}' não é uma variável")
+        
+        # Analisa a expressão e obtém seu tipo
+        expr_type = self.visit_expression(node.expression)
+        
+        # Verifica compatibilidade de tipos
+        if symbol.symbol_type != expr_type:
+            raise SemanticError(
+                f"Tipo incompatível na atribuição: '{node.identifier}' é {symbol.symbol_type}, "
+                f"mas a expressão é {expr_type}"
+            )
+    
+    def visit_read_command(self, node: ReadCommand):
+        """Visita um comando de leitura."""
+        symbol = self.symbol_table.lookup(node.identifier)
+        if symbol is None:
+            raise SemanticError(f"Variável '{node.identifier}' não foi declarada")
+        
+        if symbol.category != 'var':
+            raise SemanticError(f"'{node.identifier}' não é uma variável")
+    
+    def visit_write_command(self, node: WriteCommand):
+        """Visita um comando de escrita."""
+        self.visit_expression(node.expression)
+    
+    def visit_if_command(self, node: IfCommand):
+        """Visita um comando condicional."""
+        # A condição deve ser booleana
+        condition_type = self.visit_expression(node.condition)
+        if condition_type != 'booleano':
+            raise SemanticError(
+                f"Condição do 'se' deve ser booleana, mas é {condition_type}"
+            )
+        
+        # Visita os comandos
+        self.visit_command(node.then_command)
+        if node.else_command:
+            self.visit_command(node.else_command)
+    
+    def visit_while_command(self, node: WhileCommand):
+        """Visita um comando de repetição."""
+        # A condição deve ser booleana
+        condition_type = self.visit_expression(node.condition)
+        if condition_type != 'booleano':
+            raise SemanticError(
+                f"Condição do 'enquanto' deve ser booleana, mas é {condition_type}"
+            )
+        
+        # Visita o corpo
+        self.visit_command(node.body)
+    
+    def visit_expression(self, node: Expression) -> str:
+        """
+        Visita uma expressão e retorna seu tipo.
+        
+        Returns:
+            str: O tipo da expressão ('inteiro' ou 'booleano')
+        """
+        if isinstance(node, BinaryOp):
+            return self.visit_binary_op(node)
+        elif isinstance(node, UnaryOp):
+            return self.visit_unary_op(node)
+        elif isinstance(node, Identifier):
+            return self.visit_identifier(node)
+        elif isinstance(node, Number):
+            node.expr_type = 'inteiro'
+            return 'inteiro'
+        elif isinstance(node, Boolean):
+            node.expr_type = 'booleano'
+            return 'booleano'
+        else:
+            raise SemanticError(f"Tipo de expressão desconhecido: {type(node)}")
+    
+    def visit_binary_op(self, node: BinaryOp) -> str:
+        """Visita uma operação binária e retorna seu tipo."""
+        left_type = self.visit_expression(node.left)
+        right_type = self.visit_expression(node.right)
+        
+        op = node.operator
+        
+        # Operadores aritméticos: +, -, *, div (inteiro -> inteiro)
+        if op in ['+', '-', '*', 'div']:
+            if left_type != 'inteiro' or right_type != 'inteiro':
+                raise SemanticError(
+                    f"Operador '{op}' requer operandos inteiros, "
+                    f"mas recebeu {left_type} e {right_type}"
+                )
+            node.expr_type = 'inteiro'
+            return 'inteiro'
+        
+        # Operadores lógicos: e, ou (booleano -> booleano)
+        elif op in ['e', 'ou']:
+            if left_type != 'booleano' or right_type != 'booleano':
+                raise SemanticError(
+                    f"Operador '{op}' requer operandos booleanos, "
+                    f"mas recebeu {left_type} e {right_type}"
+                )
+            node.expr_type = 'booleano'
+            return 'booleano'
+        
+        # Operadores relacionais: =, !=, <, <=, >, >= (mesmo tipo -> booleano)
+        elif op in ['=', '!=', '<', '<=', '>', '>=']:
+            if left_type != right_type:
+                raise SemanticError(
+                    f"Operador '{op}' requer operandos do mesmo tipo, "
+                    f"mas recebeu {left_type} e {right_type}"
+                )
+            # Operadores de ordem (<, <=, >, >=) só para inteiros
+            if op in ['<', '<=', '>', '>='] and left_type != 'inteiro':
+                raise SemanticError(
+                    f"Operador '{op}' requer operandos inteiros, "
+                    f"mas recebeu {left_type}"
+                )
+            node.expr_type = 'booleano'
+            return 'booleano'
+        
+        else:
+            raise SemanticError(f"Operador desconhecido: {op}")
+    
+    def visit_unary_op(self, node: UnaryOp) -> str:
+        """Visita uma operação unária e retorna seu tipo."""
+        operand_type = self.visit_expression(node.operand)
+        
+        if node.operator == 'nao':
+            # Negação lógica: booleano -> booleano
+            if operand_type != 'booleano':
+                raise SemanticError(
+                    f"Operador 'nao' requer operando booleano, mas recebeu {operand_type}"
+                )
+            node.expr_type = 'booleano'
+            return 'booleano'
+        
+        elif node.operator == '-':
+            # Menos unário: inteiro -> inteiro
+            if operand_type != 'inteiro':
+                raise SemanticError(
+                    f"Operador '-' unário requer operando inteiro, mas recebeu {operand_type}"
+                )
+            node.expr_type = 'inteiro'
+            return 'inteiro'
+        
+        else:
+            raise SemanticError(f"Operador unário desconhecido: {node.operator}")
+    
+    def visit_identifier(self, node: Identifier) -> str:
+        """Visita um identificador e retorna seu tipo."""
+        symbol = self.symbol_table.lookup(node.name)
+        if symbol is None:
+            raise SemanticError(f"Variável '{node.name}' não foi declarada")
+        
+        if symbol.category != 'var':
+            raise SemanticError(f"'{node.name}' não é uma variável")
+        
+        node.expr_type = symbol.symbol_type
+        return symbol.symbol_type
+
