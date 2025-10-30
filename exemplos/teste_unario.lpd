@@ -1,0 +1,9 @@
+programa teste_unario;
+var x, y: inteiro;
+
+inicio
+   x := 10;
+   y := -x;
+   escreva(y)
+fim.
+

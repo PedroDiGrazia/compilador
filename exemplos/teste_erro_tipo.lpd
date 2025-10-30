@@ -1,0 +1,10 @@
+programa teste_tipo;
+var x: inteiro;
+    b: booleano;
+
+inicio
+   x := 10;
+   b := verdadeiro;
+   x := b
+fim.
+
