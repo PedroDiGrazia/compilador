@@ -1,16 +1,9 @@
 # -----------------------------------------------------------------------------
-# Analisador léxico da linguagem LPD.
-# Responsabilidades:
-# - Consumir o código-fonte (string) e produzir uma lista de tokens (Token).
-# - Ignorar espaços em branco e comentários em bloco { ... }.
-# - Reconhecer palavras-reservadas, identificadores, números e símbolos.
-# - Reportar erros com linha/coluna via LexError (ex.: comentário não encerrado).
-#
-# Pontos-chave:
-#   _skip_whitespace_and_comments: pula espaços/linhas e comentários.
-#   _identifier_or_keyword: lê IDs e mapeia para KEYWORDS quando aplicável.
-#   _number: lê literais inteiros.
-#   tokens: motor principal de varredura e emissão de tokens.
+# lexer.py
+# Analisador léxico da LPD.
+# - Converte fonte (string) em lista de Token.
+# - Ignora whitespace e comentários { ... }.
+# - Emite LexError em caso de símbolo inválido ou comentário não encerrado.
 # -----------------------------------------------------------------------------
 
 from typing import List
