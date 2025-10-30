@@ -71,21 +71,21 @@ class CompiladorGUI:
         btn_frame = ttk.Frame(acoes_frame)
         btn_frame.pack(fill=tk.X)
         
-        ttk.Button(btn_frame, text="📝 Apenas Léxico", command=self.executar_lexico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame, text="🔍 Apenas Sintático", command=self.executar_sintatico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame, text="✓ Apenas Semântico", command=self.executar_semantico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame, text="Apenas Lexico", command=self.executar_lexico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame, text="Apenas Sintatico", command=self.executar_sintatico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame, text="Apenas Semantico", command=self.executar_semantico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
         
         btn_frame2 = ttk.Frame(acoes_frame)
         btn_frame2.pack(fill=tk.X)
         
-        ttk.Button(btn_frame2, text="⚙️ COMPILAR", command=self.compilar, width=30, style="Accent.TButton").pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame2, text="▶️ EXECUTAR NA MV", command=self.executar_mv, width=30, style="Accent.TButton").pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame2, text="COMPILAR", command=self.compilar, width=30, style="Accent.TButton").pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame2, text="EXECUTAR NA MV", command=self.executar_mv, width=30, style="Accent.TButton").pack(side=tk.LEFT, padx=5, pady=5)
         
         btn_frame3 = ttk.Frame(acoes_frame)
         btn_frame3.pack(fill=tk.X)
         
-        ttk.Button(btn_frame3, text="🚀 COMPILAR + EXECUTAR", command=self.compilar_e_executar, width=40).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame3, text="🗑️ Limpar", command=self.limpar_saida, width=15).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame3, text="COMPILAR + EXECUTAR", command=self.compilar_e_executar, width=40).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame3, text="Limpar", command=self.limpar_saida, width=15).pack(side=tk.LEFT, padx=5, pady=5)
         
         # ==== SEÇÃO 3: Resultado ====
         resultado_frame = ttk.LabelFrame(main_frame, text="3. Resultado", padding="10")
@@ -162,7 +162,7 @@ class CompiladorGUI:
             self.arquivo_lpd.set(filename)
             self.arquivo_asm.set(filename.replace('.lpd', '.asm'))
             self.status.set(f"Arquivo carregado: {os.path.basename(filename)}")
-            self.adicionar_saida(f"\n✓ Arquivo carregado: {filename}\n", "sucesso")
+            self.adicionar_saida(f"\n[OK] Arquivo carregado: {filename}\n", "sucesso")
             
     def carregar_exemplo(self, exemplo):
         """Carrega um arquivo de exemplo."""
@@ -171,7 +171,7 @@ class CompiladorGUI:
             self.arquivo_lpd.set(str(caminho))
             self.arquivo_asm.set(exemplo.replace('.lpd', '.asm'))
             self.status.set(f"Exemplo carregado: {exemplo}")
-            self.adicionar_saida(f"\n✓ Exemplo carregado: {exemplo}\n", "sucesso")
+            self.adicionar_saida(f"\n[OK] Exemplo carregado: {exemplo}\n", "sucesso")
         else:
             messagebox.showerror("Erro", f"Arquivo de exemplo não encontrado: {caminho}")
             
@@ -213,14 +213,14 @@ class CompiladorGUI:
                 self.adicionar_saida(result.stderr, "erro")
                 
             if result.returncode == 0:
-                self.adicionar_saida(f"\n✓ {titulo} concluído com sucesso!\n", "sucesso")
+                self.adicionar_saida(f"\n[OK] {titulo} concluído com sucesso!\n", "sucesso")
                 self.status.set(f"{titulo} - Sucesso")
             else:
-                self.adicionar_saida(f"\n✗ {titulo} falhou!\n", "erro")
+                self.adicionar_saida(f"\n[ERRO] {titulo} falhou!\n", "erro")
                 self.status.set(f"{titulo} - Erro")
                 
         except Exception as e:
-            self.adicionar_saida(f"\n✗ Erro ao executar: {str(e)}\n", "erro")
+            self.adicionar_saida(f"\n[ERRO] Erro ao executar: {str(e)}\n", "erro")
             self.status.set("Erro na execução")
             
     def executar_lexico(self):

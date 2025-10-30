@@ -66,11 +66,11 @@ def run_parser(source: str):
     """Executa análise léxica e sintática."""
     print("=== ANÁLISE LÉXICA ===")
     tokens = Lexer(source).tokens()
-    print(f"✓ Análise léxica concluída: {len([t for t in tokens if t.type != TokenType.EOF])} tokens\n")
+    print(f"[OK] Análise léxica concluída: {len([t for t in tokens if t.type != TokenType.EOF])} tokens\n")
     
     print("=== ANÁLISE SINTÁTICA ===")
     ast = Parser(tokens).parse()
-    print("✓ Análise sintática concluída\n")
+    print("[OK] Análise sintática concluída\n")
     
     print("=== ÁRVORE SINTÁTICA ABSTRATA (AST) ===")
     print(ast_to_string(ast))
@@ -80,16 +80,16 @@ def run_semantic(source: str):
     """Executa análise léxica, sintática e semântica."""
     print("=== ANÁLISE LÉXICA ===")
     tokens = Lexer(source).tokens()
-    print(f"✓ Análise léxica concluída: {len([t for t in tokens if t.type != TokenType.EOF])} tokens\n")
+    print(f"[OK] Análise léxica concluída: {len([t for t in tokens if t.type != TokenType.EOF])} tokens\n")
     
     print("=== ANÁLISE SINTÁTICA ===")
     ast = Parser(tokens).parse()
-    print("✓ Análise sintática concluída\n")
+    print("[OK] Análise sintática concluída\n")
     
     print("=== ANÁLISE SEMÂNTICA ===")
     analyzer = SemanticAnalyzer()
     symbol_table = analyzer.analyze(ast)
-    print("✓ Análise semântica concluída\n")
+    print("[OK] Análise semântica concluída\n")
     
     print("=== TABELA DE SÍMBOLOS ===")
     print(symbol_table)
@@ -102,29 +102,29 @@ def compile_program(source: str, output_file: str = "saida.asm"):
     # Análise Léxica
     print("[1/4] Análise Léxica...", end=" ")
     tokens = Lexer(source).tokens()
-    print(f"✓ ({len([t for t in tokens if t.type != TokenType.EOF])} tokens)")
+    print(f"OK ({len([t for t in tokens if t.type != TokenType.EOF])} tokens)")
     
     # Análise Sintática
     print("[2/4] Análise Sintática...", end=" ")
     ast = Parser(tokens).parse()
-    print("✓")
+    print("OK")
     
     # Análise Semântica
     print("[3/4] Análise Semântica...", end=" ")
     analyzer = SemanticAnalyzer()
     symbol_table = analyzer.analyze(ast)
-    print(f"✓ ({symbol_table.get_memory_size()} variáveis)")
+    print(f"OK ({symbol_table.get_memory_size()} variáveis)")
     
     # Geração de Código
     print("[4/4] Geração de Código...", end=" ")
     generator = CodeGenerator(symbol_table)
     instructions = generator.generate(ast)
-    print(f"✓ ({len(instructions)} instruções)")
+    print(f"OK ({len(instructions)} instruções)")
     
     # Salva código gerado
     generator.save_to_file(output_file)
-    print(f"\n✓ Compilação concluída com sucesso!")
-    print(f"  Código gerado em: {output_file}")
+    print(f"\n[OK] Compilação concluída com sucesso!")
+    print(f"      Código gerado em: {output_file}")
     
     # Mostra código gerado
     print(f"\n=== CÓDIGO GERADO ===")
@@ -193,16 +193,16 @@ def main():
             compile_program(source, output_file)
     
     except LexError as e:
-        print(f"\n❌ ERRO LÉXICO: {e}")
+        print(f"\n[ERRO] ERRO LEXICO: {e}")
         sys.exit(2)
     except ParseError as e:
-        print(f"\n❌ ERRO SINTÁTICO: {e}")
+        print(f"\n[ERRO] ERRO SINTATICO: {e}")
         sys.exit(3)
     except SemanticError as e:
-        print(f"\n❌ ERRO SEMÂNTICO: {e}")
+        print(f"\n[ERRO] ERRO SEMANTICO: {e}")
         sys.exit(4)
     except Exception as e:
-        print(f"\n❌ ERRO INTERNO: {e}")
+        print(f"\n[ERRO] ERRO INTERNO: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(5)

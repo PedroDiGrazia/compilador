@@ -28,7 +28,7 @@ def executar_teste(arquivo_lpd: str):
     
     # Verifica se arquivo existe
     if not os.path.exists(arquivo_lpd):
-        print(f"❌ Erro: Arquivo não encontrado: {arquivo_lpd}")
+        print(f"[ERRO] Arquivo não encontrado: {arquivo_lpd}")
         return False
     
     # Define nome do arquivo assembly (compilador gera saida.asm por padrão)
@@ -45,16 +45,16 @@ def executar_teste(arquivo_lpd: str):
     result = subprocess.run(cmd_compilar, shell=True, capture_output=True, text=True)
     
     if result.returncode != 0:
-        print("❌ ERRO NA COMPILAÇÃO:")
+        print("[ERRO] ERRO NA COMPILAÇÃO:")
         print(result.stderr)
         return False
     
     print(result.stdout)
-    print("✅ Compilação concluída com sucesso!\n")
+    print("[OK] Compilação concluída com sucesso!\n")
     
     # Verifica se arquivo .asm foi gerado
     if not os.path.exists(arquivo_asm):
-        print(f"❌ Erro: Arquivo assembly não foi gerado: {arquivo_asm}")
+        print(f"[ERRO] Arquivo assembly não foi gerado: {arquivo_asm}")
         return False
     
     # Passo 2: Execução na Máquina Virtual
@@ -67,12 +67,12 @@ def executar_teste(arquivo_lpd: str):
     result = subprocess.run(cmd_executar, shell=True, capture_output=True, text=True)
     
     if result.returncode != 0:
-        print("❌ ERRO NA EXECUÇÃO:")
+        print("[ERRO] ERRO NA EXECUÇÃO:")
         print(result.stderr)
         return False
     
     print(result.stdout)
-    print("✅ Execução concluída com sucesso!\n")
+    print("[OK] Execução concluída com sucesso!\n")
     
     # Passo 3: Mostra código assembly gerado
     print("=" * 70)
@@ -83,7 +83,7 @@ def executar_teste(arquivo_lpd: str):
         print(conteudo)
     
     print("\n" + "=" * 70)
-    print("✅ TESTE COMPLETO: SUCESSO!")
+    print("[OK] TESTE COMPLETO: SUCESSO!")
     print("=" * 70)
     return True
 

@@ -498,13 +498,13 @@ def main():
         print("=" * 60)
         
     except MVDError as e:
-        print(f"\n❌ Erro na MVD: {e}", file=sys.stderr)
+        print(f"\n[ERRO] Erro na MVD: {e}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
-        print("\n\n⚠️  Execução interrompida pelo usuário")
+        print("\n\n[AVISO] Execução interrompida pelo usuário")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Erro inesperado: {e}", file=sys.stderr)
+        print(f"\n[ERRO] Erro inesperado: {e}", file=sys.stderr)
         sys.exit(1)
 
 
