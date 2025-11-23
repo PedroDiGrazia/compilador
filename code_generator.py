@@ -72,7 +72,7 @@ class CodeGenerator:
             self.emit(f"ALLOC 0,{memory_size}")
         
         # Gera código para o comando composto principal
-        self.visit_compound_command(program.compound_command)
+        self.gerar_comando_composto(program.compound_command)
         
         # Desaloca memória
         if memory_size > 0:
@@ -93,38 +93,38 @@ class CodeGenerator:
         self.label_counter += 1
         return label
     
-    # ==================== VISITADORES ====================
+    # ==================== MÉTODOS DE GERAÇÃO DE CÓDIGO ====================
     
-    def visit_compound_command(self, node: CompoundCommand):
+    def gerar_comando_composto(self, node: CompoundCommand):
         """Gera código para comando composto."""
         for command in node.commands:
-            self.visit_command(command)
+            self.gerar_comando(command)
     
-    def visit_command(self, node: Command):
-        """Despacha para o visitador apropriado."""
+    def gerar_comando(self, node: Command):
+        """Gera código para um comando (despacha para o tipo específico)."""
         if isinstance(node, Assignment):
-            self.visit_assignment(node)
+            self.gerar_atribuicao(node)
         elif isinstance(node, ReadCommand):
-            self.visit_read_command(node)
+            self.gerar_comando_leitura(node)
         elif isinstance(node, WriteCommand):
-            self.visit_write_command(node)
+            self.gerar_comando_escrita(node)
         elif isinstance(node, IfCommand):
-            self.visit_if_command(node)
+            self.gerar_comando_se(node)
         elif isinstance(node, WhileCommand):
-            self.visit_while_command(node)
+            self.gerar_comando_enquanto(node)
         elif isinstance(node, CompoundCommand):
-            self.visit_compound_command(node)
+            self.gerar_comando_composto(node)
         elif isinstance(node, EmptyCommand):
             pass
     
-    def visit_assignment(self, node: Assignment):
+    def gerar_atribuicao(self, node: Assignment):
         """
         Gera código para atribuição: id := expressao
         Avalia expressão e armazena no endereço da variável.
         Instrução MVD: STR n
         """
         # Avalia a expressão (deixa resultado na pilha)
-        self.visit_expression(node.expression)
+        self.gerar_expressao(node.expression)
         
         # Obtém endereço da variável
         symbol = self.symbol_table.lookup(node.identifier)
@@ -133,7 +133,7 @@ class CodeGenerator:
         # Armazena no endereço (STR conforme notas de aula)
         self.emit(f"STR {address}")
     
-    def visit_read_command(self, node: ReadCommand):
+    def gerar_comando_leitura(self, node: ReadCommand):
         """
         Gera código para leitura: leia(id)
         Lê valor e armazena na variável.
@@ -149,19 +149,19 @@ class CodeGenerator:
         # Armazena (STR conforme notas de aula)
         self.emit(f"STR {address}")
     
-    def visit_write_command(self, node: WriteCommand):
+    def gerar_comando_escrita(self, node: WriteCommand):
         """
         Gera código para escrita: escreva(expressao)
         Avalia expressão e imprime.
         Instrução MVD: PRN
         """
         # Avalia expressão (deixa resultado na pilha)
-        self.visit_expression(node.expression)
+        self.gerar_expressao(node.expression)
         
         # Imprime (PRN conforme notas de aula)
         self.emit("PRN")
     
-    def visit_if_command(self, node: IfCommand):
+    def gerar_comando_se(self, node: IfCommand):
         """
         Gera código para condicional: se condição entao cmd1 [senao cmd2]
         Instruções MVD: JMPF (desvio se falso), JMP (desvio sempre), NULL (label)
@@ -180,7 +180,7 @@ class CodeGenerator:
         label_fim = self.new_label()
         
         # Avalia condição
-        self.visit_expression(node.condition)
+        self.gerar_expressao(node.condition)
         
         # Se falso, desvia (JMPF conforme notas de aula)
         if node.else_command:
@@ -189,18 +189,18 @@ class CodeGenerator:
             self.emit(f"JMPF {label_fim}")
         
         # Comando then
-        self.visit_command(node.then_command)
+        self.gerar_comando(node.then_command)
         
         # Se tem else, pula o else após executar then
         if node.else_command:
             self.emit(f"JMP {label_fim}")
             self.emit(f"{label_else} NULL")
-            self.visit_command(node.else_command)
+            self.gerar_comando(node.else_command)
         
         # Label de fim (NULL conforme notas de aula)
         self.emit(f"{label_fim} NULL")
     
-    def visit_while_command(self, node: WhileCommand):
+    def gerar_comando_enquanto(self, node: WhileCommand):
         """
         Gera código para repetição: enquanto condição faca cmd
         Instruções MVD: JMPF, JMP, NULL
@@ -221,13 +221,13 @@ class CodeGenerator:
         self.emit(f"{label_inicio} NULL")
         
         # Avalia condição
-        self.visit_expression(node.condition)
+        self.gerar_expressao(node.condition)
         
         # Se falso, sai do loop (JMPF conforme notas de aula)
         self.emit(f"JMPF {label_fim}")
         
         # Corpo do loop
-        self.visit_command(node.body)
+        self.gerar_comando(node.body)
         
         # Volta para o início (JMP conforme notas de aula)
         self.emit(f"JMP {label_inicio}")
@@ -235,14 +235,14 @@ class CodeGenerator:
         # Label de fim (NULL conforme notas de aula)
         self.emit(f"{label_fim} NULL")
     
-    def visit_expression(self, node: Expression):
+    def gerar_expressao(self, node: Expression):
         """Gera código para avaliar expressão (deixa resultado na pilha)."""
         if isinstance(node, BinaryOp):
-            self.visit_binary_op(node)
+            self.gerar_operacao_binaria(node)
         elif isinstance(node, UnaryOp):
-            self.visit_unary_op(node)
+            self.gerar_operacao_unaria(node)
         elif isinstance(node, Identifier):
-            self.visit_identifier(node)
+            self.gerar_identificador(node)
         elif isinstance(node, Number):
             # LDC conforme notas de aula (Load Constant)
             self.emit(f"LDC {node.value}")
@@ -252,17 +252,17 @@ class CodeGenerator:
             # LDC conforme notas de aula
             self.emit(f"LDC {value}")
     
-    def visit_binary_op(self, node: BinaryOp):
+    def gerar_operacao_binaria(self, node: BinaryOp):
         """
         Gera código para operação binária.
         Avalia operandos (empilha) e aplica operador.
         Instruções MVD conforme Notas de Aula.
         """
         # Avalia operandos
-        self.visit_expression(node.left)
-        self.visit_expression(node.right)
+        self.gerar_expressao(node.left)
+        self.gerar_expressao(node.right)
         
-        # Aplica operador (nomes EXATOS das notas de aula)
+        # Aplica operador
         op_map = {
             '+': 'ADD',      # Somar
             '-': 'SUB',      # Subtrair
@@ -284,7 +284,7 @@ class CodeGenerator:
         else:
             raise Exception(f"Operador desconhecido: {node.operator}")
     
-    def visit_unary_op(self, node: UnaryOp):
+    def gerar_operacao_unaria(self, node: UnaryOp):
         """
         Gera código para operação unária.
         Avalia operando e aplica operador.
@@ -292,17 +292,17 @@ class CodeGenerator:
         """
         if node.operator == 'nao':
             # Negação lógica (NEG conforme notas de aula)
-            self.visit_expression(node.operand)
+            self.gerar_expressao(node.operand)
             self.emit("NEG")
         elif node.operator == '-':
             # Menos unário (INV conforme notas de aula)
             # INV (Inverter sinal): M[s]:=-M[s]
-            self.visit_expression(node.operand)
+            self.gerar_expressao(node.operand)
             self.emit("INV")
         else:
             raise Exception(f"Operador unário desconhecido: {node.operator}")
     
-    def visit_identifier(self, node: Identifier):
+    def gerar_identificador(self, node: Identifier):
         """
         Gera código para carregar valor de variável.
         Instrução MVD: LDV n (Load Value)

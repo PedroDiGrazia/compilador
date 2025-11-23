@@ -1,0 +1,94 @@
+programa exemplo_recursivo;
+{ Exemplo usando PROCEDIMENTOS, FUNCOES e RECURSIVIDADE }
+{ Calcula fatorial e fibonacci de forma recursiva }
+
+var numero, resultado: inteiro;
+
+{ Funcao recursiva: Fatorial }
+funcao fatorial(n: inteiro): inteiro;
+inicio
+    se n <= 1 entao
+        fatorial := 1
+    senao
+        fatorial := n * fatorial(n - 1)
+    fimse
+fim;
+
+{ Funcao recursiva: Fibonacci }
+funcao fibonacci(n: inteiro): inteiro;
+inicio
+    se n <= 1 entao
+        fibonacci := n
+    senao
+        fibonacci := fibonacci(n - 1) + fibonacci(n - 2)
+    fimse
+fim;
+
+{ Funcao auxiliar: Potencia (iterativa para comparacao) }
+funcao potencia(base, exp: inteiro): inteiro;
+var i, result: inteiro;
+inicio
+    result := 1;
+    i := 0;
+    enquanto i < exp faca
+    inicio
+        result := result * base;
+        i := i + 1
+    fim;
+    potencia := result
+fim;
+
+{ Procedimento que exibe resultados }
+procedimento mostrar_fatorial(n: inteiro);
+var fat: inteiro;
+inicio
+    fat := fatorial(n);
+    escreva(fat)
+fim;
+
+{ Procedimento recursivo: Imprime contagem regressiva }
+procedimento contagem_regressiva(n: inteiro);
+inicio
+    se n > 0 entao
+    inicio
+        escreva(n);
+        contagem_regressiva(n - 1)
+    fim
+    fimse
+fim;
+
+{ Procedimento principal de testes }
+procedimento executar_testes(valor: inteiro);
+var fib, pot: inteiro;
+inicio
+    { Teste 1: Fatorial }
+    mostrar_fatorial(valor);
+    
+    { Teste 2: Fibonacci }
+    fib := fibonacci(valor);
+    escreva(fib);
+    
+    { Teste 3: Potencia }
+    pot := potencia(2, valor);
+    escreva(pot);
+    
+    { Teste 4: Contagem regressiva }
+    contagem_regressiva(valor)
+fim;
+
+inicio
+    { Programa principal }
+    leia(numero);
+    
+    { Valida entrada }
+    se numero < 0 entao
+        escreva(0)  { Erro: numero negativo }
+    senao
+        se numero > 10 entao
+            escreva(0)  { Erro: numero muito grande (evita stack overflow) }
+        senao
+            executar_testes(numero)
+        fimse
+    fimse
+fim.
+

@@ -1,0 +1,27 @@
+programa exemplo_procedimento;
+{ Exemplo usando PROCEDIMENTOS }
+{ Um procedimento imprime uma mensagem formatada }
+
+var x, y: inteiro;
+
+procedimento imprimir_resultado(valor: inteiro);
+inicio
+    escreva(valor)
+fim;
+
+procedimento somar_e_imprimir(a, b: inteiro);
+var resultado: inteiro;
+inicio
+    resultado := a + b;
+    imprimir_resultado(resultado)
+fim;
+
+inicio
+    { Programa principal }
+    leia(x);
+    leia(y);
+    
+    { Chama procedimento que chama outro procedimento }
+    somar_e_imprimir(x, y)
+fim.
+

@@ -1,0 +1,16 @@
+programa exemplo_simples;
+{ Exemplo basico: calculos e impressao }
+
+var x, y, resultado: inteiro;
+
+inicio
+    leia(x);
+    leia(y);
+    
+    resultado := x + y;
+    escreva(resultado);
+    
+    resultado := x * y;
+    escreva(resultado)
+fim.
+

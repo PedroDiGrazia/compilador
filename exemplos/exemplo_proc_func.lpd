@@ -1,0 +1,46 @@
+programa exemplo_procedimento_funcao;
+{ Exemplo usando PROCEDIMENTOS e FUNCOES }
+{ Calcula area e perimetro de um retangulo }
+
+var largura, altura: inteiro;
+
+funcao calcular_area(base, alt: inteiro): inteiro;
+var area: inteiro;
+inicio
+    area := base * alt;
+    calcular_area := area
+fim;
+
+funcao calcular_perimetro(base, alt: inteiro): inteiro;
+inicio
+    calcular_perimetro := 2 * (base + alt)
+fim;
+
+procedimento imprimir_linha;
+inicio
+    escreva(999)  { Usamos 999 como separador visual }
+fim;
+
+procedimento mostrar_resultados(larg, alt: inteiro);
+var area, perimetro: inteiro;
+inicio
+    { Chama funcoes para calcular }
+    area := calcular_area(larg, alt);
+    perimetro := calcular_perimetro(larg, alt);
+    
+    { Imprime resultados }
+    imprimir_linha;
+    escreva(area);
+    escreva(perimetro);
+    imprimir_linha
+fim;
+
+inicio
+    { Programa principal }
+    leia(largura);
+    leia(altura);
+    
+    { Chama procedimento que usa funcoes }
+    mostrar_resultados(largura, altura)
+fim.
+
