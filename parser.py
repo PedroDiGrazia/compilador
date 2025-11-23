@@ -82,15 +82,23 @@ class Parser:
     def bloco(self) -> Block:
         """
         bloco ::= [declaracao_variaveis] [declaracao_subrotinas] comando_composto
+        declaracao_subrotinas ::= { declaracao_procedimento | declaracao_funcao }
         """
         var_decls = None
         if self.match(TokenType.VAR):
             var_decls = self.declaracao_variaveis()
         
-        procedures = []
-        functions = []
-        # TODO: implementar procedimentos e funções no futuro
+        procedures: List[Procedure] = []
+        functions: List[Function] = []
         
+        # Zero ou mais declarações de procedimentos/funções
+        while self.match(TokenType.PROCEDIMENTO, TokenType.FUNCAO):
+            if self.match(TokenType.PROCEDIMENTO):
+                procedures.append(self.declaracao_procedimento())
+            else:
+                functions.append(self.declaracao_funcao())
+        
+        # Depois disso obrigatoriamente vem um comando_composto (inicio ... fim)
         compound_cmd = self.comando_composto()
         
         return Block(
@@ -99,7 +107,7 @@ class Parser:
             functions=functions,
             compound_command=compound_cmd
         )
-    
+
     # ==================== DECLARAÇÕES ====================
     
     def declaracao_variaveis(self) -> VarDeclarations:
@@ -152,6 +160,102 @@ class Parser:
             return "booleano"
         else:
             raise ParseError("Esperado tipo 'inteiro' ou 'booleano'", self.current)
+
+    # ==================== DECLARAÇÕES DE SUBROTINAS ====================
+
+    def declaracao_procedimento(self) -> Procedure:
+        """
+        declaracao_procedimento ::=
+            "procedimento" ID [ "(" lista_parametros ")" ] ";" bloco ";"
+        """
+        self.expect(TokenType.PROCEDIMENTO, "Esperado 'procedimento'")
+        name_token = self.expect(TokenType.ID, "Esperado identificador do procedimento")
+        name = name_token.value
+
+        parameters: List[Parameter] = []
+
+        # Parâmetros opcionais: procedimento P(a: inteiro; b: booleano);
+        if self.match(TokenType.LPAREN):
+            parameters = self.lista_parametros()
+
+        self.expect(TokenType.SEMI, "Esperado ';' após cabeçalho do procedimento")
+
+        block = self.bloco()
+
+        # Após 'fim' do bloco do procedimento, espera ';'
+        self.expect(TokenType.SEMI, "Esperado ';' após 'fim' do procedimento")
+
+        return Procedure(name=name, parameters=parameters, block=block)
+
+    def declaracao_funcao(self) -> Function:
+        """
+        declaracao_funcao ::=
+            "funcao" ID [ "(" lista_parametros ")" ] ":" tipo ";" bloco ";"
+        """
+        self.expect(TokenType.FUNCAO, "Esperado 'funcao'")
+        name_token = self.expect(TokenType.ID, "Esperado identificador da função")
+        name = name_token.value
+
+        parameters: List[Parameter] = []
+
+        # Parâmetros opcionais: funcao soma(a: inteiro; b: inteiro): inteiro;
+        if self.match(TokenType.LPAREN):
+            parameters = self.lista_parametros()
+
+        self.expect(TokenType.COLON, "Esperado ':' após nome/parâmetros da função")
+
+        return_type = self.tipo()  # 'inteiro' ou 'booleano'
+
+        self.expect(TokenType.SEMI, "Esperado ';' após cabeçalho da função")
+
+        block = self.bloco()
+
+        self.expect(TokenType.SEMI, "Esperado ';' após 'fim' da função")
+
+        return Function(
+            name=name,
+            parameters=parameters,
+            return_type=return_type,
+            block=block
+        )
+
+    def lista_parametros(self) -> List[Parameter]:
+        """
+        lista_parametros ::= "(" parametro { ";" parametro } ")"
+        """
+        params: List[Parameter] = []
+
+        self.expect(TokenType.LPAREN, "Esperado '(' na lista de parâmetros")
+
+        params.append(self.parametro())
+
+        while self.match(TokenType.SEMI):
+            self.advance()
+            params.append(self.parametro())
+
+        self.expect(TokenType.RPAREN, "Esperado ')' ao final da lista de parâmetros")
+
+        return params
+
+    def parametro(self) -> Parameter:
+        """
+        parametro ::= lista_ids ":" tipo
+        """
+        identifiers: List[str] = []
+
+        id_token = self.expect(TokenType.ID, "Esperado identificador de parâmetro")
+        identifiers.append(id_token.value)
+
+        while self.match(TokenType.COMMA):
+            self.advance()
+            id_token = self.expect(TokenType.ID, "Esperado identificador após ','")
+            identifiers.append(id_token.value)
+
+        self.expect(TokenType.COLON, "Esperado ':' após lista de parâmetros")
+
+        param_type = self.tipo()
+
+        return Parameter(identifiers=identifiers, param_type=param_type)
     
     # ==================== COMANDOS ====================
     
@@ -181,12 +285,18 @@ class Parser:
     
     def comando(self) -> Command:
         """
-        comando ::= atribuicao | leitura | escrita | condicional | repeticao | comando_composto
+        comando ::= atribuicao | chamada_procedimento | leitura | escrita
+                    | condicional | repeticao | comando_composto
         """
-        # Atribuição: ID := ...
+        # Pode ser atribuição ou chamada de procedimento
         if self.match(TokenType.ID):
-            return self.atribuicao()
-        
+            # Olha o próximo token para decidir
+            next_tok = self.peek()
+            if next_tok and next_tok.type == TokenType.ATRIB:
+                return self.atribuicao()
+            else:
+                return self.chamada_procedimento()
+
         # Leitura: leia(...)
         elif self.match(TokenType.LEIA):
             return self.leitura()
@@ -208,7 +318,7 @@ class Parser:
             return self.comando_composto()
         
         else:
-            raise ParseError(f"Comando inválido", self.current)
+            raise ParseError("Comando inválido", self.current)
     
     def atribuicao(self) -> Assignment:
         """
@@ -287,7 +397,7 @@ class Parser:
         
         # Operadores relacionais
         if self.match(TokenType.EQ, TokenType.NEQ, TokenType.LT, 
-                     TokenType.LE, TokenType.GT, TokenType.GE):
+                      TokenType.LE, TokenType.GT, TokenType.GE):
             op_token = self.current
             self.advance()
             right = self.expressao_simples()
@@ -400,5 +510,34 @@ class Parser:
             return expr
         
         else:
-            raise ParseError(f"Esperado expressão, encontrado {self.current.type.name}", self.current)
+            raise ParseError(
+                f"Esperado expressão, encontrado {self.current.type.name}",
+                self.current
+            )
+
+    def chamada_procedimento(self) -> ProcedureCall:
+        """
+        chamada_procedimento ::= ID ["(" lista_argumentos ")"]
+        lista_argumentos     ::= expressao { "," expressao }
+        (no nível de comando, o ';' é consumido pelo comando_composto)
+        """
+        name_token = self.expect(TokenType.ID, "Esperado identificador do procedimento")
+        name = name_token.value
+
+        arguments: List[Expression] = []
+
+        # Chamada com argumentos: proc(a, b)
+        if self.match(TokenType.LPAREN):
+            self.advance()  # consome '('
+
+            # Pode não ter argumentos: proc()
+            if not self.match(TokenType.RPAREN):
+                arguments.append(self.expressao())
+                while self.match(TokenType.COMMA):
+                    self.advance()
+                    arguments.append(self.expressao())
+
+            self.expect(TokenType.RPAREN, "Esperado ')' ao final da chamada de procedimento")
+
+        return ProcedureCall(name=name, arguments=arguments)
 

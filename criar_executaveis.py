@@ -1,19 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Script para criar executáveis Windows (.exe) do Compilador e Máquina Virtual
-usando PyInstaller.
-
-Este script cria versões standalone que podem ser executadas em Windows
-sem necessidade de instalação do Python.
-"""
-
 import os
 import sys
 import subprocess
 
 def criar_executaveis():
-    """Cria executáveis Windows usando PyInstaller."""
+    # Cria executáveis Windows usando PyInstaller.
     
     print("=" * 70)
     print("CRIANDO EXECUTÁVEIS WINDOWS")
@@ -34,13 +26,14 @@ def criar_executaveis():
     
     # Criar executável do compilador
     cmd_compilador = [
-        "pyinstaller",
-        "--onefile",
-        "--name=compilador",
-        "--clean",
-        "main.py"
+        sys.executable,   
+            "-m", "PyInstaller",
+            "--onefile",
+            "--name=compilador",
+            "--clean",
+            "main.py"
     ]
-    
+   
     result = subprocess.run(cmd_compilador, capture_output=True, text=True)
     if result.returncode == 0:
         print("[OK] compilador.exe criado com sucesso!")
@@ -54,12 +47,15 @@ def criar_executaveis():
     
     # Criar executável da máquina virtual
     cmd_mv = [
-        "pyinstaller",
-        "--onefile",
-        "--name=maquina_virtual",
-        "--clean",
-        "maquina_virtual.py"
+        sys.executable,
+            "-m", 
+            "PyInstaller",
+            "--onefile",
+            "--name=maquina_virtual",
+            "--clean",
+            "maquina_virtual.py"
     ]
+
     
     result = subprocess.run(cmd_mv, capture_output=True, text=True)
     if result.returncode == 0:

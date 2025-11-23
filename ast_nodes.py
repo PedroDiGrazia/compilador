@@ -1,7 +1,4 @@
-"""
-AST (Abstract Syntax Tree) - Nós da Árvore Sintática Abstrata
-Representa a estrutura hierárquica do programa LPD após análise sintática.
-"""
+# Representa a estrutura hierárquica do programa LPD após análise sintática.
 
 from dataclasses import dataclass
 from typing import List, Optional
@@ -9,7 +6,6 @@ from typing import List, Optional
 
 # Classe base para todos os nós da AST
 class ASTNode:
-    """Classe base para todos os nós da árvore sintática abstrata."""
     pass
 
 
@@ -17,7 +13,6 @@ class ASTNode:
 
 @dataclass
 class Program(ASTNode):
-    """Nó raiz: programa nome; declarações comandos."""
     name: str
     var_declarations: Optional['VarDeclarations']
     procedures: List['Procedure']
@@ -29,20 +24,17 @@ class Program(ASTNode):
 
 @dataclass
 class VarDeclarations(ASTNode):
-    """Declarações de variáveis: var declarações;"""
     declarations: List['VarDeclaration']
 
 
 @dataclass
 class VarDeclaration(ASTNode):
-    """Declaração individual: ids : tipo"""
     identifiers: List[str]
     var_type: str  # 'inteiro' ou 'booleano'
 
 
 @dataclass
 class Procedure(ASTNode):
-    """Procedimento (para implementação futura)"""
     name: str
     parameters: List['Parameter']
     block: 'Block'
@@ -50,7 +42,6 @@ class Procedure(ASTNode):
 
 @dataclass
 class Function(ASTNode):
-    """Função (para implementação futura)"""
     name: str
     parameters: List['Parameter']
     return_type: str
@@ -59,55 +50,111 @@ class Function(ASTNode):
 
 @dataclass
 class Parameter(ASTNode):
-    """Parâmetro de procedimento/função"""
     identifiers: List[str]
     param_type: str
 
 
 @dataclass
 class Block(ASTNode):
-    """Bloco de código"""
     var_declarations: Optional[VarDeclarations]
     procedures: List[Procedure]
     functions: List[Function]
     compound_command: 'CompoundCommand'
 
+# ==================== DECLARAÇÕES DE SUBROTINAS ====================
+
+def declaracao_procedimento(self) -> Procedure:
+    """
+    declaracao_procedimento ::=
+        "procedimento" ID [ "(" lista_parametros ")" ] ";" bloco ";"
+    """
+    self.expect(TokenType.PROCEDIMENTO, "Esperado 'procedimento'")
+    name_token = self.expect(TokenType.ID, "Esperado identificador do procedimento")
+    name = name_token.value
+
+    parameters: List[Parameter] = []
+
+    # Parâmetros opcionais: procedimento P(a: inteiro; b: booleano);
+    if self.match(TokenType.LPAREN):
+        parameters = self.lista_parametros()
+
+    self.expect(TokenType.SEMI, "Esperado ';' após cabeçalho do procedimento")
+
+    block = self.bloco()
+
+    # Exemplo da apostila: 'fim' do proc termina com ';'
+    self.expect(TokenType.SEMI, "Esperado ';' após 'fim' do procedimento")
+
+    return Procedure(name=name, parameters=parameters, block=block)
+
+
+def declaracao_funcao(self) -> Function:
+    """
+    declaracao_funcao ::=
+        "funcao" ID [ "(" lista_parametros ")" ] ":" tipo ";" bloco ";"
+    """
+    self.expect(TokenType.FUNCAO, "Esperado 'funcao'")
+    name_token = self.expect(TokenType.ID, "Esperado identificador da função")
+    name = name_token.value
+
+    parameters: List[Parameter] = []
+
+    # Parâmetros opcionais: funcao soma(a: inteiro; b: inteiro): inteiro;
+    if self.match(TokenType.LPAREN):
+        parameters = self.lista_parametros()
+
+    self.expect(TokenType.COLON, "Esperado ':' após nome/parâmetros da função")
+
+    return_type = self.tipo()  # 'inteiro' ou 'booleano'
+
+    self.expect(TokenType.SEMI, "Esperado ';' após cabeçalho da função")
+
+    block = self.bloco()
+
+    self.expect(TokenType.SEMI, "Esperado ';' após 'fim' da função")
+
+    return Function(
+        name=name,
+        parameters=parameters,
+        return_type=return_type,
+        block=block
+    )
 
 # ==================== COMANDOS ====================
 
 @dataclass
 class CompoundCommand(ASTNode):
-    """Comando composto: inicio comandos fim"""
     commands: List['Command']
 
 
 class Command(ASTNode):
-    """Classe base para todos os comandos."""
     pass
 
 
 @dataclass
 class Assignment(Command):
-    """Atribuição: id := expressão"""
     identifier: str
     expression: 'Expression'
 
 
 @dataclass
+class ProcedureCall(Command):
+    name: str
+    arguments: List['Expression']
+
+
+@dataclass
 class ReadCommand(Command):
-    """Comando de leitura: leia(id)"""
     identifier: str
 
 
 @dataclass
 class WriteCommand(Command):
-    """Comando de escrita: escreva(expressão)"""
     expression: 'Expression'
 
 
 @dataclass
 class IfCommand(Command):
-    """Comando condicional: se expressão entao comando [senao comando]"""
     condition: 'Expression'
     then_command: Command
     else_command: Optional[Command] = None
@@ -115,27 +162,23 @@ class IfCommand(Command):
 
 @dataclass
 class WhileCommand(Command):
-    """Comando de repetição: enquanto expressão faca comando"""
     condition: 'Expression'
     body: Command
 
 
 @dataclass
 class EmptyCommand(Command):
-    """Comando vazio."""
     pass
 
 
 # ==================== EXPRESSÕES ====================
 
 class Expression(ASTNode):
-    """Classe base para todas as expressões."""
     expr_type: Optional[str] = None  # 'inteiro' ou 'booleano' (preenchido na análise semântica)
 
 
 @dataclass
 class BinaryOp(Expression):
-    """Operação binária: expressão operador expressão"""
     left: Expression
     operator: str  # '+', '-', '*', 'div', 'e', 'ou', '=', '!=', '<', '<=', '>', '>='
     right: Expression
@@ -144,7 +187,6 @@ class BinaryOp(Expression):
 
 @dataclass
 class UnaryOp(Expression):
-    """Operação unária: operador expressão"""
     operator: str  # 'nao', '-'
     operand: Expression
     expr_type: Optional[str] = None
@@ -152,29 +194,32 @@ class UnaryOp(Expression):
 
 @dataclass
 class Identifier(Expression):
-    """Identificador: nome de variável"""
     name: str
     expr_type: Optional[str] = None
 
 
 @dataclass
 class Number(Expression):
-    """Número literal"""
     value: int
     expr_type: str = 'inteiro'
 
 
 @dataclass
 class Boolean(Expression):
-    """Booleano literal: verdadeiro ou falso"""
     value: bool
     expr_type: str = 'booleano'
+
+
+@dataclass
+class FunctionCall(Expression):
+    name: str
+    arguments: List['Expression']
+    expr_type: Optional[str] = None
 
 
 # ==================== UTILITÁRIOS ====================
 
 def ast_to_string(node: ASTNode, indent: int = 0) -> str:
-    """Converte a AST para string formatada (para debug)."""
     prefix = "  " * indent
     
     if isinstance(node, Program):
@@ -254,6 +299,19 @@ def ast_to_string(node: ASTNode, indent: int = 0) -> str:
     
     elif isinstance(node, EmptyCommand):
         return f"{prefix}Empty\n"
+
+    elif isinstance(node, ProcedureCall):
+        result = f"{prefix}ProcCall({node.name})\n"
+        for arg in node.arguments:
+            result += ast_to_string(arg, indent + 1)
+        return result
+
+    elif isinstance(node, FunctionCall):
+        result = f"{prefix}FuncCall({node.name})\n"
+        for arg in node.arguments:
+            result += ast_to_string(arg, indent + 1)
+        return result
+
     
     else:
         return f"{prefix}{node.__class__.__name__}\n"
