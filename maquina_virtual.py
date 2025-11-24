@@ -124,9 +124,17 @@ class MaquinaVirtual:
             
             # Processa operandos
             if len(partes) > 1:
-                # Junta o resto e separa por vírgula
+                # Junta o resto
                 resto = ' '.join(partes[1:])
-                for op in resto.split(','):
+                
+                # Suporta separação por vírgula OU espaço
+                # Primeiro tenta separar por vírgula, se não houver vírgula, usa espaço
+                if ',' in resto:
+                    ops_list = resto.split(',')
+                else:
+                    ops_list = resto.split()
+                
+                for op in ops_list:
                     op = op.strip()
                     if op:
                         # Tenta converter para inteiro, senão mantém como string (label)
@@ -359,12 +367,15 @@ class MaquinaVirtual:
             if len(ops) != 1:
                 raise MVDError(f"JMP espera 1 operando")
             label = ops[0]
-            if isinstance(label, str):
-                if label not in self.labels:
-                    raise MVDError(f"Label não encontrado: {label}")
+            # Tenta buscar como string primeiro (labels numéricos são armazenados como string)
+            label_str = str(label)
+            if label_str in self.labels:
+                self.i = self.labels[label_str]
+            elif isinstance(label, str) and label in self.labels:
                 self.i = self.labels[label]
             else:
-                self.i = label
+                # Assume que é um endereço direto
+                self.i = int(label) if isinstance(label, str) else label
         
         # JMPF p - Desvio se falso
         elif instr == 'JMPF':
@@ -375,12 +386,14 @@ class MaquinaVirtual:
             
             label = ops[0]
             if self.M[self.s] == 0:
-                if isinstance(label, str):
-                    if label not in self.labels:
-                        raise MVDError(f"Label não encontrado: {label}")
+                # Tenta buscar como string primeiro (labels numéricos são armazenados como string)
+                label_str = str(label)
+                if label_str in self.labels:
+                    self.i = self.labels[label_str]
+                elif isinstance(label, str) and label in self.labels:
                     self.i = self.labels[label]
                 else:
-                    self.i = label
+                    self.i = int(label) if isinstance(label, str) else label
             else:
                 self.i += 1
             self.s -= 1
@@ -426,12 +439,14 @@ class MaquinaVirtual:
             self.M[self.s] = self.i + 1
             
             label = ops[0]
-            if isinstance(label, str):
-                if label not in self.labels:
-                    raise MVDError(f"Label não encontrado: {label}")
+            # Tenta buscar como string primeiro (labels numéricos são armazenados como string)
+            label_str = str(label)
+            if label_str in self.labels:
+                self.i = self.labels[label_str]
+            elif isinstance(label, str) and label in self.labels:
                 self.i = self.labels[label]
             else:
-                self.i = label
+                self.i = int(label) if isinstance(label, str) else label
         
         # RETURN - Retorna de procedimento
         elif instr == 'RETURN':

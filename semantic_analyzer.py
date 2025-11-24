@@ -1,6 +1,7 @@
 """
 Semantic Analyzer - Analisador Semântico
 Realiza análise semântica da AST: verificação de tipos, declarações e compatibilidade.
+Utiliza escopos hierárquicos para suportar variáveis locais e shadowing.
 """
 
 from ast_nodes import *
@@ -10,7 +11,6 @@ from symbol_table import SymbolTable, Symbol
 class SemanticError(Exception):
     """Exceção para erros semânticos."""
     def __init__(self, message: str):
-        # message aqui é só o texto "limpo"; o prefixo é adicionado aqui
         super().__init__(f"Erro semântico: {message}")
 
 
@@ -19,13 +19,19 @@ class SemanticAnalyzer:
     Analisador semântico que percorre a AST verificando:
     - Declaração antes do uso
     - Tipos compatíveis
-    - Declaração única (aproximação, sem escopos reais)
+    - Declaração única por escopo (permite shadowing entre escopos)
     - Operadores compatíveis com tipos
+    
+    Implementa escopos hierárquicos conforme notas de aula (seção 7.7):
+    - Cada função/procedimento cria um novo escopo
+    - Variáveis locais podem ter mesmo nome que globais (shadowing)
+    - Endereços são calculados sequencialmente por escopo
     """
     
     def __init__(self):
         self.symbol_table = SymbolTable()
         self.errors = []
+        self.current_function = None  # Nome da função atual (para verificar atribuição de retorno)
     
     def analyze(self, program: Program) -> SymbolTable:
         """
@@ -35,7 +41,6 @@ class SemanticAnalyzer:
         try:
             self.visit_program(program)
         except SemanticError as e:
-            # Remove prefixo duplicado se existir
             msg = str(e)
             prefix = "Erro semântico: "
             if msg.startswith(prefix):
@@ -43,7 +48,6 @@ class SemanticAnalyzer:
             self.errors.append(msg)
         
         if self.errors:
-            # Junta todos os erros em uma única mensagem
             raise SemanticError("\n".join(self.errors))
         
         return self.symbol_table
@@ -53,95 +57,139 @@ class SemanticAnalyzer:
     def visit_program(self, node: Program):
         """
         Programa LPD:
-          - declara variáveis globais
-          - declara cabeçalhos de procedimentos e funções
-          - declara variáveis locais de TODOS os blocos de subrotinas
-          - analisa o comando composto principal
+          1. Reserva posições para retorno de funções do nível global
+          2. Declara variáveis globais
+          3. Processa funções e procedimentos (com seus escopos)
+          4. Analisa o comando composto principal
         """
-        # 1) Variáveis globais
-        if node.var_declarations:
-            self.visit_var_declarations(node.var_declarations)
-
-        # 2) Cabeçalhos de procedimentos de topo
-        for proc in node.procedures:
-            try:
-                # categoria = 'procedimento', tipo simbólico genérico
-                self.symbol_table.declare(proc.name, "procedimento", "procedimento")
-            except Exception as e:
-                raise SemanticError(str(e))
-
-        # 3) Cabeçalhos de funções de topo
+        # 1) Primeiro, reserva posições de retorno para TODAS as funções do nível global
+        # Isso deve vir ANTES das variáveis globais
         for func in node.functions:
             try:
-                # symbol_type = tipo de retorno ('inteiro' ou 'booleano')
-                self.symbol_table.declare(func.name, func.return_type, "funcao")
+                self.symbol_table.declare_function_return(func.name, func.return_type)
             except Exception as e:
                 raise SemanticError(str(e))
-
-        # 4) Declara variáveis locais (aproximação, sem escopo real) em TODAS as subrotinas
-        self._declare_locals_in_block_list(node.procedures, node.functions)
-
-        # 5) Analisa apenas o corpo principal (o codegen trata o corpo das subrotinas)
+        
+        # 2) Declara variáveis globais
+        if node.var_declarations:
+            self.visit_var_declarations(node.var_declarations)
+        
+        # 3) Declara procedimentos do nível global (sem alocação de memória)
+        for proc in node.procedures:
+            try:
+                self.symbol_table.declare_procedure(proc.name)
+            except Exception as e:
+                raise SemanticError(str(e))
+        
+        # 4) Processa blocos de funções e procedimentos (com escopos aninhados)
+        for func in node.functions:
+            self.visit_function(func)
+        
+        for proc in node.procedures:
+            self.visit_procedure(proc)
+        
+        # 5) Analisa o corpo principal
         self.visit_compound_command(node.compound_command)
-
-    # ---------- Helpers para variáveis locais em blocos ----------
-
-    def _declare_locals_in_block_list(self, procedures: list, functions: list):
+    
+    # ==================== FUNÇÕES E PROCEDIMENTOS ====================
+    
+    def visit_function(self, node: Function):
         """
-        Declara variáveis locais recursivamente em todos os blocos de
-        procedimentos e funções (incluindo os aninhados).
+        Processa uma função:
+        - Entra em novo escopo
+        - Declara variáveis locais
+        - Processa subrotinas aninhadas
+        - Analisa comandos
+        - Sai do escopo
         """
-        for proc in procedures:
-            self._declare_locals_in_block(proc.block)
-        for func in functions:
-            self._declare_locals_in_block(func.block)
-
-    def _declare_locals_in_block(self, block: Block):
+        # Calcula endereço base para este escopo
+        base_addr = self.symbol_table.get_next_address()
+        
+        # Entra no escopo da função
+        self.symbol_table.enter_scope(base_addr)
+        
+        old_function = self.current_function
+        self.current_function = node.name
+        
+        # Processa o bloco da função
+        self._process_block(node.block)
+        
+        self.current_function = old_function
+        
+        # Sai do escopo
+        self.symbol_table.exit_scope()
+    
+    def visit_procedure(self, node: Procedure):
         """
-        Declara variáveis locais de um bloco e depois entra recursivamente
-        nos procedimentos/funções declarados dentro dele.
+        Processa um procedimento:
+        - Entra em novo escopo
+        - Declara variáveis locais
+        - Processa subrotinas aninhadas
+        - Analisa comandos
+        - Sai do escopo
         """
+        # Calcula endereço base para este escopo
+        base_addr = self.symbol_table.get_next_address()
+        
+        # Entra no escopo do procedimento
+        self.symbol_table.enter_scope(base_addr)
+        
+        # Processa o bloco do procedimento
+        self._process_block(node.block)
+        
+        # Sai do escopo
+        self.symbol_table.exit_scope()
+    
+    def _process_block(self, block: Block):
+        """
+        Processa um bloco (comum a funções e procedimentos):
+        - Reserva posições de retorno para funções aninhadas
+        - Declara variáveis locais
+        - Declara procedimentos aninhados
+        - Processa subrotinas aninhadas recursivamente
+        - Analisa comandos
+        """
+        # 1) Reserva posições de retorno para funções aninhadas
+        for func in block.functions:
+            try:
+                self.symbol_table.declare_function_return(func.name, func.return_type)
+            except Exception as e:
+                raise SemanticError(str(e))
+        
+        # 2) Declara variáveis locais
         if block.var_declarations:
-            self.visit_local_var_declarations(block.var_declarations)
-
-        # Procedimentos e funções aninhados
-        self._declare_locals_in_block_list(block.procedures, block.functions)
+            self.visit_var_declarations(block.var_declarations)
+        
+        # 3) Declara procedimentos aninhados
+        for proc in block.procedures:
+            try:
+                self.symbol_table.declare_procedure(proc.name)
+            except Exception as e:
+                raise SemanticError(str(e))
+        
+        # 4) Processa subrotinas aninhadas (recursivamente)
+        for func in block.functions:
+            self.visit_function(func)
+        
+        for proc in block.procedures:
+            self.visit_procedure(proc)
+        
+        # 5) Analisa os comandos do bloco
+        self.visit_compound_command(block.compound_command)
     
     # ==================== DECLARAÇÕES DE VARIÁVEIS ====================
     
     def visit_var_declarations(self, node: VarDeclarations):
-        """Declarações de variáveis globais."""
+        """Declarações de variáveis."""
         for decl in node.declarations:
             self.visit_var_declaration(decl)
     
     def visit_var_declaration(self, node: VarDeclaration):
-        """Declara uma declaração de variável (global)."""
-        for identifier in node.identifiers:
-            try:
-                self.symbol_table.declare(identifier, node.var_type, 'var')
-            except Exception as e:
-                # Duplicata global ainda é erro
-                raise SemanticError(str(e))
-
-    # ---- Versão para variáveis locais (subrotinas) ----
-    def visit_local_var_declarations(self, node: VarDeclarations):
-        for decl in node.declarations:
-            self.visit_local_var_declaration(decl)
-
-    def visit_local_var_declaration(self, node: VarDeclaration):
         """
-        Declara variáveis locais de funções/procedimentos.
-
-        Aproximação: se o identificador já existe na tabela (por exemplo, global),
-        não redeclara para evitar erro de duplicata em uma tabela sem escopos.
-        No exemplo da apostila (mesmo nome global/local), isso faz o nome usar
-        o endereço global.
+        Declara variáveis no escopo atual.
+        Permite shadowing (variável local com mesmo nome que global).
         """
         for identifier in node.identifiers:
-            # Se já existe algum símbolo com esse nome, não redeclara
-            if self.symbol_table.lookup(identifier) is not None:
-                continue
-
             try:
                 self.symbol_table.declare(identifier, node.var_type, 'var')
             except Exception as e:
@@ -166,6 +214,8 @@ class SemanticAnalyzer:
             self.visit_while_command(node)
         elif isinstance(node, CompoundCommand):
             self.visit_compound_command(node)
+        elif isinstance(node, ProcedureCall):
+            self.visit_procedure_call(node)
         elif isinstance(node, EmptyCommand):
             pass
     
@@ -200,6 +250,14 @@ class SemanticAnalyzer:
             raise SemanticError(
                 f"'{node.identifier}' não pode receber atribuição (não é variável nem função)"
             )
+    
+    def visit_procedure_call(self, node: ProcedureCall):
+        """Verifica chamada de procedimento."""
+        symbol = self.symbol_table.lookup(node.name)
+        if symbol is None:
+            raise SemanticError(f"Procedimento '{node.name}' não foi declarado")
+        if symbol.category != 'procedimento':
+            raise SemanticError(f"'{node.name}' não é um procedimento")
     
     def visit_read_command(self, node: ReadCommand):
         symbol = self.symbol_table.lookup(node.identifier)
@@ -331,4 +389,3 @@ class SemanticAnalyzer:
         
         node.expr_type = symbol.symbol_type
         return symbol.symbol_type
-

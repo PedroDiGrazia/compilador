@@ -117,8 +117,8 @@ def compile_program(source: str, output_file: str = "saida.asm"):
     
     # Geração de Código
     print("[4/4] Geração de Código...", end=" ")
-    generator = CodeGenerator(symbol_table)
-    instructions = generator.generate(ast)
+    generator = CodeGenerator()
+    instructions = generator.generate(ast, symbol_table)
     print(f"OK ({len(instructions)} instruções)")
     
     # Salva código gerado
