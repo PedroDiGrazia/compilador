@@ -200,11 +200,24 @@ class CodeGenerator:
         self.emit(f"STR {address}")
     
     def visit_read_command(self, node: ReadCommand):
+        """
+        Gera código para leitura: leia(id)
+        Lê valor e armazena na variável.
+        Instrução MVD: RD seguido de STR
+        """
+        # Lê valor (empilha)
         self.emit("RD")
+
+        # Obtém endereço da variável
         symbol = self.symbol_table.lookup(node.identifier)
+        if symbol is None:
+            raise Exception(f"Identificador '{node.identifier}' não declarado (codegen)")
+
         address = symbol.memory_address
+
+        # Armazena
         self.emit(f"STR {address}")
-    
+
     def visit_write_command(self, node: WriteCommand):
         self.visit_expression(node.expression)
         self.emit("PRN")

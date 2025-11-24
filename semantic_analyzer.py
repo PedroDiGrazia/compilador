@@ -10,6 +10,7 @@ from symbol_table import SymbolTable, Symbol
 class SemanticError(Exception):
     """Exceção para erros semânticos."""
     def __init__(self, message: str):
+        # message aqui é só o texto "limpo"; o prefixo é adicionado aqui
         super().__init__(f"Erro semântico: {message}")
 
 
@@ -18,7 +19,7 @@ class SemanticAnalyzer:
     Analisador semântico que percorre a AST verificando:
     - Declaração antes do uso
     - Tipos compatíveis
-    - Declaração única no mesmo escopo
+    - Declaração única (aproximação, sem escopos reais)
     - Operadores compatíveis com tipos
     """
     
@@ -27,60 +28,126 @@ class SemanticAnalyzer:
         self.errors = []
     
     def analyze(self, program: Program) -> SymbolTable:
+        """
+        Analisa semanticamente o programa e retorna a tabela de símbolos.
+        Se houver erros, levanta SemanticError com todos eles.
+        """
         try:
             self.visit_program(program)
         except SemanticError as e:
-            self.errors.append(str(e))
+            # Remove prefixo duplicado se existir
+            msg = str(e)
+            prefix = "Erro semântico: "
+            if msg.startswith(prefix):
+                msg = msg[len(prefix):]
+            self.errors.append(msg)
         
         if self.errors:
+            # Junta todos os erros em uma única mensagem
             raise SemanticError("\n".join(self.errors))
         
         return self.symbol_table
     
-    # ==================== VISITADORES ====================
+    # ==================== PROGRAMA ====================
     
     def visit_program(self, node: Program):
         """
         Programa LPD:
           - declara variáveis globais
-          - declara cabeçalhos de procedimentos e funções na tabela de símbolos
+          - declara cabeçalhos de procedimentos e funções
+          - declara variáveis locais de TODOS os blocos de subrotinas
           - analisa o comando composto principal
-        (corpos de funções/procedimentos podem ser analisados depois, se quiser)
         """
-        # 1) Declara variáveis globais
+        # 1) Variáveis globais
         if node.var_declarations:
             self.visit_var_declarations(node.var_declarations)
 
-        # 2) Declara procedimentos (apenas cabeçalho)
+        # 2) Cabeçalhos de procedimentos de topo
         for proc in node.procedures:
             try:
-                # tipo simbólico "procedimento" (não é usado em expressão)
+                # categoria = 'procedimento', tipo simbólico genérico
                 self.symbol_table.declare(proc.name, "procedimento", "procedimento")
             except Exception as e:
                 raise SemanticError(str(e))
 
-        # 3) Declara funções (apenas cabeçalho)
+        # 3) Cabeçalhos de funções de topo
         for func in node.functions:
             try:
-                # symbol_type = tipo de retorno ("inteiro" ou "booleano")
-                # category = "funcao"
+                # symbol_type = tipo de retorno ('inteiro' ou 'booleano')
                 self.symbol_table.declare(func.name, func.return_type, "funcao")
             except Exception as e:
                 raise SemanticError(str(e))
 
-        # 4) Analisa apenas o corpo principal por enquanto
+        # 4) Declara variáveis locais (aproximação, sem escopo real) em TODAS as subrotinas
+        self._declare_locals_in_block_list(node.procedures, node.functions)
+
+        # 5) Analisa apenas o corpo principal (o codegen trata o corpo das subrotinas)
         self.visit_compound_command(node.compound_command)
+
+    # ---------- Helpers para variáveis locais em blocos ----------
+
+    def _declare_locals_in_block_list(self, procedures: list, functions: list):
+        """
+        Declara variáveis locais recursivamente em todos os blocos de
+        procedimentos e funções (incluindo os aninhados).
+        """
+        for proc in procedures:
+            self._declare_locals_in_block(proc.block)
+        for func in functions:
+            self._declare_locals_in_block(func.block)
+
+    def _declare_locals_in_block(self, block: Block):
+        """
+        Declara variáveis locais de um bloco e depois entra recursivamente
+        nos procedimentos/funções declarados dentro dele.
+        """
+        if block.var_declarations:
+            self.visit_local_var_declarations(block.var_declarations)
+
+        # Procedimentos e funções aninhados
+        self._declare_locals_in_block_list(block.procedures, block.functions)
+    
+    # ==================== DECLARAÇÕES DE VARIÁVEIS ====================
     
     def visit_var_declarations(self, node: VarDeclarations):
+        """Declarações de variáveis globais."""
         for decl in node.declarations:
             self.visit_var_declaration(decl)
     
     def visit_var_declaration(self, node: VarDeclaration):
+        """Declara uma declaração de variável (global)."""
         for identifier in node.identifiers:
             try:
                 self.symbol_table.declare(identifier, node.var_type, 'var')
             except Exception as e:
+                # Duplicata global ainda é erro
                 raise SemanticError(str(e))
+
+    # ---- Versão para variáveis locais (subrotinas) ----
+    def visit_local_var_declarations(self, node: VarDeclarations):
+        for decl in node.declarations:
+            self.visit_local_var_declaration(decl)
+
+    def visit_local_var_declaration(self, node: VarDeclaration):
+        """
+        Declara variáveis locais de funções/procedimentos.
+
+        Aproximação: se o identificador já existe na tabela (por exemplo, global),
+        não redeclara para evitar erro de duplicata em uma tabela sem escopos.
+        No exemplo da apostila (mesmo nome global/local), isso faz o nome usar
+        o endereço global.
+        """
+        for identifier in node.identifiers:
+            # Se já existe algum símbolo com esse nome, não redeclara
+            if self.symbol_table.lookup(identifier) is not None:
+                continue
+
+            try:
+                self.symbol_table.declare(identifier, node.var_type, 'var')
+            except Exception as e:
+                raise SemanticError(str(e))
+    
+    # ==================== COMANDOS ====================
     
     def visit_compound_command(self, node: CompoundCommand):
         for command in node.commands:
@@ -105,8 +172,8 @@ class SemanticAnalyzer:
     def visit_assignment(self, node: Assignment):
         """
         Atribuição:
-          - se id for variável  -> verifica tipo da variável com o da expressão
-          - se id for função    -> trata como comando de retorno (Exp := Resultado;)
+          - se id for variável  -> checa tipo
+          - se id for função    -> trata como comando de retorno (soma := expr;)
         """
         symbol = self.symbol_table.lookup(node.identifier)
         if symbol is None:
@@ -114,7 +181,6 @@ class SemanticAnalyzer:
         
         expr_type = self.visit_expression(node.expression)
 
-        # variável normal
         if symbol.category == 'var':
             if symbol.symbol_type != expr_type:
                 raise SemanticError(
@@ -122,17 +188,15 @@ class SemanticAnalyzer:
                     f"mas a expressão é {expr_type}"
                 )
 
-        # nome de função sendo usado como “retorno”
         elif symbol.category == 'funcao':
+            # Comando de retorno da função
             if symbol.symbol_type != expr_type:
                 raise SemanticError(
                     f"Tipo de retorno incompatível na função '{node.identifier}': "
                     f"esperado {symbol.symbol_type}, obtido {expr_type}"
                 )
-            # semanticamente ok: comando de retorno (RETURNF no gerador de código)
 
         else:
-            # procedimento não pode receber atribuição
             raise SemanticError(
                 f"'{node.identifier}' não pode receber atribuição (não é variável nem função)"
             )
@@ -165,7 +229,12 @@ class SemanticAnalyzer:
             )
         self.visit_command(node.body)
     
+    # ==================== EXPRESSÕES ====================
+    
     def visit_expression(self, node: Expression) -> str:
+        """
+        Retorna o tipo da expressão: 'inteiro' ou 'booleano'.
+        """
         if isinstance(node, BinaryOp):
             return self.visit_binary_op(node)
         elif isinstance(node, UnaryOp):
@@ -186,6 +255,7 @@ class SemanticAnalyzer:
         right_type = self.visit_expression(node.right)
         op = node.operator
         
+        # Operadores aritméticos
         if op in ['+', '-', '*', 'div']:
             if left_type != 'inteiro' or right_type != 'inteiro':
                 raise SemanticError(
@@ -195,6 +265,7 @@ class SemanticAnalyzer:
             node.expr_type = 'inteiro'
             return 'inteiro'
         
+        # Operadores lógicos
         elif op in ['e', 'ou']:
             if left_type != 'booleano' or right_type != 'booleano':
                 raise SemanticError(
@@ -204,6 +275,7 @@ class SemanticAnalyzer:
             node.expr_type = 'booleano'
             return 'booleano'
         
+        # Operadores relacionais
         elif op in ['=', '!=', '<', '<=', '>', '>=']:
             if left_type != right_type:
                 raise SemanticError(
@@ -247,8 +319,8 @@ class SemanticAnalyzer:
         """
         Identificador pode ser:
           - variável (category='var')
-          - função  (category='funcao') usada como chamada de função em expressão
-        Não pode ser procedimento em expressão.
+          - função  (category='funcao') em expressão
+        Procedimento não pode aparecer em expressão.
         """
         symbol = self.symbol_table.lookup(node.name)
         if symbol is None:
@@ -257,7 +329,6 @@ class SemanticAnalyzer:
         if symbol.category == 'procedimento':
             raise SemanticError(f"Procedimento '{node.name}' não pode ser usado em expressões")
         
-        # variável ou função: tipo é o tipo do símbolo
         node.expr_type = symbol.symbol_type
         return symbol.symbol_type
 
