@@ -14,7 +14,10 @@ import tkinter as tk
 from tkinter import ttk, filedialog, scrolledtext, messagebox
 import subprocess
 import os
-from pathlib import Path
+import threading
+
+# Importa a máquina virtual para execução direta
+from maquina_virtual import MaquinaVirtual, MVDError
 
 
 class CompiladorGUI:
@@ -23,12 +26,20 @@ class CompiladorGUI:
     def __init__(self, root):
         """Inicializa a interface gráfica."""
         self.root = root
-        self.root.title("Compilador LPD + Máquina Virtual")
-        self.root.geometry("900x700")
+        self.root.title("Compilador LPD")
+        self.root.geometry("800x600")
         
         # Variáveis
         self.arquivo_lpd = tk.StringVar()
         self.arquivo_asm = tk.StringVar()
+        self.entrada_usuario = tk.StringVar()
+        
+        # Estado da MV
+        self.mv = None
+        self.mv_thread = None
+        self.aguardando_input = False
+        self.input_event = threading.Event()
+        self.valor_input = None
         
         # Configurar interface
         self.criar_interface()
@@ -44,7 +55,7 @@ class CompiladorGUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(3, weight=1)
+        main_frame.rowconfigure(2, weight=1)
         
         # ==== SEÇÃO 1: Seleção de Arquivo ====
         arquivo_frame = ttk.LabelFrame(main_frame, text="1. Arquivo Fonte (.lpd)", padding="10")
@@ -55,102 +66,60 @@ class CompiladorGUI:
         ttk.Entry(arquivo_frame, textvariable=self.arquivo_lpd, width=50).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
         ttk.Button(arquivo_frame, text="Procurar...", command=self.selecionar_arquivo).grid(row=0, column=2, padx=5)
         
-        # Exemplos rápidos
-        exemplos_frame = ttk.Frame(arquivo_frame)
-        exemplos_frame.grid(row=1, column=0, columnspan=3, pady=5)
-        ttk.Label(exemplos_frame, text="Exemplos:").pack(side=tk.LEFT, padx=5)
-        ttk.Button(exemplos_frame, text="prog1.lpd", command=lambda: self.carregar_exemplo("prog1.lpd")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(exemplos_frame, text="prog3.lpd", command=lambda: self.carregar_exemplo("prog3.lpd")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(exemplos_frame, text="teste_completo.lpd", command=lambda: self.carregar_exemplo("teste_completo.lpd")).pack(side=tk.LEFT, padx=2)
-        
-        # ==== SEÇÃO 2: Ações ====
-        acoes_frame = ttk.LabelFrame(main_frame, text="2. Ações", padding="10")
-        acoes_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
+        # ==== SEÇÃO 2: Compilar ====
+        compilar_frame = ttk.LabelFrame(main_frame, text="2. Compilar", padding="10")
+        compilar_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
         
         # Botões de ação
-        btn_frame = ttk.Frame(acoes_frame)
+        btn_frame = ttk.Frame(compilar_frame)
         btn_frame.pack(fill=tk.X)
         
-        ttk.Button(btn_frame, text="Apenas Lexico", command=self.executar_lexico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame, text="Apenas Sintatico", command=self.executar_sintatico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame, text="Apenas Semantico", command=self.executar_semantico, width=20).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame, text="COMPILAR", command=self.compilar, width=20).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(btn_frame, text="EXECUTAR VM", command=self.executar_mv, width=20).pack(side=tk.LEFT, padx=5, pady=5)
         
-        btn_frame2 = ttk.Frame(acoes_frame)
-        btn_frame2.pack(fill=tk.X)
-        
-        ttk.Button(btn_frame2, text="COMPILAR", command=self.compilar, width=30, style="Accent.TButton").pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame2, text="EXECUTAR NA MV", command=self.executar_mv, width=30, style="Accent.TButton").pack(side=tk.LEFT, padx=5, pady=5)
-        
-        btn_frame3 = ttk.Frame(acoes_frame)
-        btn_frame3.pack(fill=tk.X)
-        
-        ttk.Button(btn_frame3, text="COMPILAR + EXECUTAR", command=self.compilar_e_executar, width=40).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(btn_frame3, text="Limpar", command=self.limpar_saida, width=15).pack(side=tk.LEFT, padx=5, pady=5)
-        
-        # ==== SEÇÃO 3: Resultado ====
-        resultado_frame = ttk.LabelFrame(main_frame, text="3. Resultado", padding="10")
-        resultado_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=5)
-        resultado_frame.columnconfigure(1, weight=1)
-        
-        ttk.Label(resultado_frame, text="Assembly gerado:").grid(row=0, column=0, sticky=tk.W, padx=5)
-        ttk.Entry(resultado_frame, textvariable=self.arquivo_asm, width=50).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
-        ttk.Button(resultado_frame, text="Ver Código", command=self.ver_codigo_asm).grid(row=0, column=2, padx=5)
-        
-        # ==== SEÇÃO 4: Saída ====
-        saida_frame = ttk.LabelFrame(main_frame, text="4. Saída / Log", padding="10")
-        saida_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        # ==== SEÇÃO 3: Saída / Terminal ====
+        saida_frame = ttk.LabelFrame(main_frame, text="3. Saída", padding="10")
+        saida_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         saida_frame.columnconfigure(0, weight=1)
         saida_frame.rowconfigure(0, weight=1)
         
         # Área de texto com scroll
-        self.texto_saida = scrolledtext.ScrolledText(saida_frame, height=20, wrap=tk.WORD)
+        self.texto_saida = scrolledtext.ScrolledText(saida_frame, height=20, wrap=tk.WORD, 
+                                                      bg='#1e1e1e', fg='#d4d4d4',
+                                                      insertbackground='white',
+                                                      font=('Consolas', 10))
         self.texto_saida.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configurar tags para cores
-        self.texto_saida.tag_config("erro", foreground="red")
-        self.texto_saida.tag_config("sucesso", foreground="green")
-        self.texto_saida.tag_config("info", foreground="blue")
+        self.texto_saida.tag_config("erro", foreground="#f44747")
+        self.texto_saida.tag_config("sucesso", foreground="#4ec9b0")
+        self.texto_saida.tag_config("info", foreground="#569cd6")
+        self.texto_saida.tag_config("input", foreground="#ce9178")
+        self.texto_saida.tag_config("output", foreground="#dcdcaa")
+        self.texto_saida.tag_config("prompt", foreground="#9cdcfe")
+        
+        # Frame de entrada (para inputs interativos)
+        input_frame = ttk.Frame(saida_frame)
+        input_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
+        input_frame.columnconfigure(1, weight=1)
+        
+        self.label_input = ttk.Label(input_frame, text="")
+        self.label_input.grid(row=0, column=0, sticky=tk.W, padx=5)
+        
+        self.entry_input = ttk.Entry(input_frame, textvariable=self.entrada_usuario, width=50)
+        self.entry_input.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        self.entry_input.bind('<Return>', self.enviar_input)
+        
+        self.btn_enviar = ttk.Button(input_frame, text="Enviar", command=self.enviar_input, state=tk.DISABLED)
+        self.btn_enviar.grid(row=0, column=2, padx=5)
         
         # ==== BARRA DE STATUS ====
         self.status = tk.StringVar(value="Pronto")
         status_bar = ttk.Label(self.root, textvariable=self.status, relief=tk.SUNKEN, anchor=tk.W)
         status_bar.grid(row=1, column=0, sticky=(tk.W, tk.E))
         
-        # Menu
-        self.criar_menu()
-        
         # Mensagem inicial
-        self.adicionar_saida("=== Compilador LPD + Máquina Virtual ===\n", "info")
-        self.adicionar_saida("Selecione um arquivo .lpd ou escolha um exemplo para começar.\n\n", "info")
-        
-    def criar_menu(self):
-        """Cria a barra de menu."""
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
-        
-        # Menu Arquivo
-        menu_arquivo = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Arquivo", menu=menu_arquivo)
-        menu_arquivo.add_command(label="Abrir...", command=self.selecionar_arquivo)
-        menu_arquivo.add_separator()
-        menu_arquivo.add_command(label="Sair", command=self.root.quit)
-        
-        # Menu Exemplos
-        menu_exemplos = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Exemplos", menu=menu_exemplos)
-        menu_exemplos.add_command(label="prog1.lpd (Básico)", command=lambda: self.carregar_exemplo("prog1.lpd"))
-        menu_exemplos.add_command(label="prog2.lpd (Condicional)", command=lambda: self.carregar_exemplo("prog2.lpd"))
-        menu_exemplos.add_command(label="prog3.lpd (Loop)", command=lambda: self.carregar_exemplo("prog3.lpd"))
-        menu_exemplos.add_command(label="teste_completo.lpd (Completo)", command=lambda: self.carregar_exemplo("teste_completo.lpd"))
-        menu_exemplos.add_command(label="teste_unario.lpd (Operador Unário)", command=lambda: self.carregar_exemplo("teste_unario.lpd"))
-        menu_exemplos.add_separator()
-        menu_exemplos.add_command(label="erro.lpd (Erro Léxico)", command=lambda: self.carregar_exemplo("erro.lpd"))
-        
-        # Menu Ajuda
-        menu_ajuda = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Ajuda", menu=menu_ajuda)
-        menu_ajuda.add_command(label="Como Usar", command=self.mostrar_ajuda)
-        menu_ajuda.add_command(label="Sobre", command=self.mostrar_sobre)
+        self.adicionar_saida("Compilador LPD - Selecione um arquivo .lpd para começar\n", "info")
         
     def selecionar_arquivo(self):
         """Abre diálogo para selecionar arquivo .lpd."""
@@ -161,29 +130,19 @@ class CompiladorGUI:
         if filename:
             self.arquivo_lpd.set(filename)
             self.arquivo_asm.set(filename.replace('.lpd', '.asm'))
-            self.status.set(f"Arquivo carregado: {os.path.basename(filename)}")
-            self.adicionar_saida(f"\n[OK] Arquivo carregado: {filename}\n", "sucesso")
-            
-    def carregar_exemplo(self, exemplo):
-        """Carrega um arquivo de exemplo."""
-        caminho = Path("exemplos") / exemplo
-        if caminho.exists():
-            self.arquivo_lpd.set(str(caminho))
-            self.arquivo_asm.set(exemplo.replace('.lpd', '.asm'))
-            self.status.set(f"Exemplo carregado: {exemplo}")
-            self.adicionar_saida(f"\n[OK] Exemplo carregado: {exemplo}\n", "sucesso")
-        else:
-            messagebox.showerror("Erro", f"Arquivo de exemplo não encontrado: {caminho}")
+            self.status.set(f"Arquivo: {os.path.basename(filename)}")
+            self.adicionar_saida(f"\n> Arquivo carregado: {filename}\n", "sucesso")
             
     def adicionar_saida(self, texto, tag=None):
         """Adiciona texto à área de saída."""
         self.texto_saida.insert(tk.END, texto, tag)
         self.texto_saida.see(tk.END)
+        self.root.update_idletasks()
         
     def limpar_saida(self):
         """Limpa a área de saída."""
         self.texto_saida.delete(1.0, tk.END)
-        self.status.set("Saída limpa")
+        self.status.set("Pronto")
         
     def executar_comando(self, comando, titulo):
         """Executa um comando e mostra o resultado."""
@@ -191,9 +150,9 @@ class CompiladorGUI:
             messagebox.showwarning("Aviso", "Selecione um arquivo .lpd primeiro!")
             return
             
-        self.adicionar_saida(f"\n{'='*60}\n", "info")
+        self.adicionar_saida(f"\n{'='*50}\n", "info")
         self.adicionar_saida(f"{titulo}\n", "info")
-        self.adicionar_saida(f"{'='*60}\n", "info")
+        self.adicionar_saida(f"{'='*50}\n", "info")
         self.status.set(f"Executando: {titulo}...")
         self.root.update()
         
@@ -213,140 +172,154 @@ class CompiladorGUI:
                 self.adicionar_saida(result.stderr, "erro")
                 
             if result.returncode == 0:
-                self.adicionar_saida(f"\n[OK] {titulo} concluído com sucesso!\n", "sucesso")
-                self.status.set(f"{titulo} - Sucesso")
+                self.adicionar_saida(f"\n[OK] {titulo} concluído\n", "sucesso")
+                self.status.set(f"{titulo} - OK")
             else:
-                self.adicionar_saida(f"\n[ERRO] {titulo} falhou!\n", "erro")
+                self.adicionar_saida(f"\n[ERRO] {titulo} falhou\n", "erro")
                 self.status.set(f"{titulo} - Erro")
                 
         except Exception as e:
-            self.adicionar_saida(f"\n[ERRO] Erro ao executar: {str(e)}\n", "erro")
-            self.status.set("Erro na execução")
+            self.adicionar_saida(f"\n[ERRO] {str(e)}\n", "erro")
+            self.status.set("Erro")
             
     def executar_lexico(self):
         """Executa apenas análise léxica."""
         cmd = f"python3 main.py {self.arquivo_lpd.get()} --lex"
-        self.executar_comando(cmd, "ANÁLISE LÉXICA")
+        self.executar_comando(cmd, "Análise Léxica")
         
     def executar_sintatico(self):
         """Executa análise sintática."""
         cmd = f"python3 main.py {self.arquivo_lpd.get()} --parse"
-        self.executar_comando(cmd, "ANÁLISE SINTÁTICA")
+        self.executar_comando(cmd, "Análise Sintática")
         
     def executar_semantico(self):
         """Executa análise semântica."""
         cmd = f"python3 main.py {self.arquivo_lpd.get()} --semantic"
-        self.executar_comando(cmd, "ANÁLISE SEMÂNTICA")
+        self.executar_comando(cmd, "Análise Semântica")
         
     def compilar(self):
         """Compila o programa."""
+        if not self.arquivo_lpd.get():
+            messagebox.showwarning("Aviso", "Selecione um arquivo .lpd primeiro!")
+            return
+            
         if not self.arquivo_asm.get():
             self.arquivo_asm.set(self.arquivo_lpd.get().replace('.lpd', '.asm'))
             
         cmd = f"python3 main.py {self.arquivo_lpd.get()} -o {self.arquivo_asm.get()}"
-        self.executar_comando(cmd, "COMPILAÇÃO COMPLETA")
+        self.executar_comando(cmd, "Compilação")
         
     def executar_mv(self):
-        """Executa na Máquina Virtual."""
+        """Executa na Máquina Virtual de forma interativa."""
         if not self.arquivo_asm.get() or not os.path.exists(self.arquivo_asm.get()):
             messagebox.showwarning("Aviso", "Compile o programa primeiro!")
             return
-            
-        cmd = f"python3 maquina_virtual.py {self.arquivo_asm.get()}"
-        self.executar_comando(cmd, "EXECUÇÃO NA MÁQUINA VIRTUAL")
         
-    def compilar_e_executar(self):
-        """Compila e executa o programa."""
-        self.compilar()
-        self.root.after(500, self.executar_mv)  # Aguarda 500ms antes de executar
+        # Inicia execução em thread separada
+        self.mv_thread = threading.Thread(target=self._executar_mv_thread, daemon=True)
+        self.mv_thread.start()
         
-    def ver_codigo_asm(self):
-        """Mostra o código assembly gerado."""
-        if not self.arquivo_asm.get() or not os.path.exists(self.arquivo_asm.get()):
-            messagebox.showwarning("Aviso", "Nenhum código assembly gerado ainda!")
-            return
-            
+    def _executar_mv_thread(self):
+        """Executa a MV em thread separada para não travar a GUI."""
         try:
-            with open(self.arquivo_asm.get(), 'r') as f:
-                codigo = f.read()
-                
-            # Criar janela para mostrar código
-            janela = tk.Toplevel(self.root)
-            janela.title(f"Código Assembly - {os.path.basename(self.arquivo_asm.get())}")
-            janela.geometry("600x500")
+            self.adicionar_saida(f"\n{'='*50}\n", "info")
+            self.adicionar_saida("Execução na Máquina Virtual\n", "info")
+            self.adicionar_saida(f"{'='*50}\n", "info")
             
-            texto = scrolledtext.ScrolledText(janela, wrap=tk.WORD)
-            texto.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-            texto.insert(1.0, codigo)
-            texto.config(state=tk.DISABLED)
+            # Carrega e configura a MV
+            self.mv = MaquinaVirtual()
+            self.mv.carregar_programa(self.arquivo_asm.get())
             
-            ttk.Button(janela, text="Fechar", command=janela.destroy).pack(pady=5)
+            self.adicionar_saida(f"Programa carregado: {len(self.mv.P)} instruções\n\n", "info")
             
+            # Executa com callback para input
+            self._executar_mv_interativo()
+            
+            self.adicionar_saida("\n[OK] Execução concluída\n", "sucesso")
+            self.status.set("Execução concluída")
+            
+        except MVDError as e:
+            self.adicionar_saida(f"\n[ERRO] {str(e)}\n", "erro")
+            self.status.set("Erro na execução")
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao ler arquivo: {str(e)}")
+            self.adicionar_saida(f"\n[ERRO] {str(e)}\n", "erro")
+            self.status.set("Erro")
+        finally:
+            self._desabilitar_input()
+    
+    def _executar_mv_interativo(self):
+        """Executa a MV instrução por instrução com suporte a input interativo."""
+        self.mv.executando = True
+        self.mv.i = 0
+        self.mv.s = -1
+        self.mv.saida = []
+        
+        while self.mv.executando and self.mv.i < len(self.mv.P):
+            instrucao, operandos = self.mv.P[self.mv.i]
             
-    def mostrar_ajuda(self):
-        """Mostra ajuda sobre como usar."""
-        ajuda = """
-        COMO USAR O COMPILADOR LPD
+            # Tratamento especial para RD (leitura)
+            if instrucao == 'RD':
+                self._habilitar_input()
+                self.adicionar_saida("Digite um valor inteiro: ", "prompt")
+                
+                # Aguarda input do usuário
+                self.input_event.clear()
+                self.input_event.wait()
+                
+                # Processa o valor
+                try:
+                    valor = int(self.valor_input)
+                    self.mv.s += 1
+                    self.mv.M[self.mv.s] = valor
+                    self.adicionar_saida(f"{valor}\n", "input")
+                    self.mv.i += 1
+                except (ValueError, TypeError):
+                    raise MVDError("Entrada inválida: esperado inteiro")
+                    
+                self._desabilitar_input()
+                
+            # Tratamento especial para PRN (impressão)
+            elif instrucao == 'PRN':
+                if self.mv.s < 0:
+                    raise MVDError("Stack underflow em PRN")
+                valor = self.mv.M[self.mv.s]
+                self.adicionar_saida(f"{valor}\n", "output")
+                self.mv.saida.append(valor)
+                self.mv.s -= 1
+                self.mv.i += 1
+                
+            # Outras instruções
+            else:
+                self.mv._executar_instrucao(instrucao, operandos)
+    
+    def _habilitar_input(self):
+        """Habilita o campo de entrada."""
+        self.aguardando_input = True
+        self.root.after(0, lambda: self._set_input_state(True))
         
-        1. SELECIONAR ARQUIVO
-           - Clique em "Procurar..." ou use o menu Arquivo > Abrir
-           - Ou escolha um exemplo nos botões rápidos
+    def _desabilitar_input(self):
+        """Desabilita o campo de entrada."""
+        self.aguardando_input = False
+        self.root.after(0, lambda: self._set_input_state(False))
         
-        2. COMPILAR
-           - Clique em "COMPILAR" para gerar código assembly
-           - Ou use os botões individuais para cada fase
-        
-        3. EXECUTAR
-           - Clique em "EXECUTAR NA MV" para rodar o programa
-           - Ou use "COMPILAR + EXECUTAR" para fazer tudo de uma vez
-        
-        4. VER RESULTADOS
-           - O log mostra todas as mensagens
-           - Clique em "Ver Código" para ver o assembly gerado
-        
-        ATALHOS:
-        - Exemplos no menu para teste rápido
-        - "Limpar" para limpar a área de saída
-        
-        Para mais informações, consulte o MANUAL.md
-        """
-        
-        janela = tk.Toplevel(self.root)
-        janela.title("Como Usar")
-        janela.geometry("500x400")
-        
-        texto = scrolledtext.ScrolledText(janela, wrap=tk.WORD)
-        texto.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        texto.insert(1.0, ajuda)
-        texto.config(state=tk.DISABLED)
-        
-        ttk.Button(janela, text="Fechar", command=janela.destroy).pack(pady=5)
-        
-    def mostrar_sobre(self):
-        """Mostra informações sobre o projeto."""
-        sobre = """
-        COMPILADOR LPD + MÁQUINA VIRTUAL DIDÁTICA
-        
-        Versão: 1.0
-        
-        Projeto acadêmico para a disciplina de Compiladores.
-        
-        Implementa:
-        • Análise Léxica
-        • Análise Sintática (Parser Descendente Recursivo)
-        • Análise Semântica
-        • Geração de Código (Assembly MVD)
-        • Máquina Virtual para execução
-        
-        100% compatível com as especificações das
-        "Notas de Aula de Compiladores"
-        
-        PUC - Compiladores 2025
-        """
-        
-        messagebox.showinfo("Sobre", sobre)
+    def _set_input_state(self, habilitado):
+        """Define o estado do campo de entrada (thread-safe)."""
+        if habilitado:
+            self.label_input.config(text="Entrada:")
+            self.btn_enviar.config(state=tk.NORMAL)
+            self.entry_input.config(state=tk.NORMAL)
+            self.entry_input.focus_set()
+        else:
+            self.label_input.config(text="")
+            self.btn_enviar.config(state=tk.DISABLED)
+            self.entrada_usuario.set("")
+            
+    def enviar_input(self, event=None):
+        """Envia o valor digitado para a MV."""
+        if self.aguardando_input:
+            self.valor_input = self.entrada_usuario.get().strip()
+            self.entrada_usuario.set("")
+            self.input_event.set()
 
 
 def main():
@@ -356,8 +329,8 @@ def main():
     # Tentar usar tema moderno
     try:
         style = ttk.Style()
-        style.theme_use('clam')  # Tema mais moderno
-    except:
+        style.theme_use('clam')
+    except Exception:
         pass
     
     app = CompiladorGUI(root)
@@ -366,4 +339,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
