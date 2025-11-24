@@ -3,11 +3,6 @@
 """
 Máquina Virtual Didática (MVD)
 Implementação da máquina virtual para executar código assembly gerado pelo compilador LPD.
-
-Baseado nas especificações das "Notas de Aula de Compiladores" - Seção 7.
-
-Autor: Compiladores - PUC
-Data: 2025
 """
 
 import sys
@@ -445,15 +440,23 @@ class MaquinaVirtual:
             self.i = self.M[self.s]
             self.s -= 1
         
-        # RETURNF - Retorna de função
+                # RETURNF - Retorna de função (com valor)
         elif instr == 'RETURNF':
             if self.s < 1:
                 raise MVDError("Stack underflow em RETURNF")
-            # Valor de retorno está em M[s-1], endereço de retorno em M[s]
-            endereco_retorno = self.M[self.s]
+            # Convenção:
+            #   antes do RETURNF:
+            #       M[s-1] = endereço de retorno (empilhado pelo CALL)
+            #       M[s]   = valor de retorno
+            valor_retorno = self.M[self.s]
+            endereco_retorno = self.M[self.s - 1]
+            # move o valor de retorno para a posição do endereço
+            self.M[self.s - 1] = valor_retorno
+            # ajusta topo da pilha
             self.s -= 1
+            # volta para o ponto de chamada
             self.i = endereco_retorno
-        
+       
         # HLT - Para execução
         elif instr == 'HLT':
             self.executando = False

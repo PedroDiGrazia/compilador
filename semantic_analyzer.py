@@ -27,18 +27,6 @@ class SemanticAnalyzer:
         self.errors = []
     
     def analyze(self, program: Program) -> SymbolTable:
-        """
-        Analisa semanticamente o programa.
-        
-        Args:
-            program: Nó raiz da AST
-        
-        Returns:
-            SymbolTable: Tabela de símbolos preenchida
-        
-        Raises:
-            SemanticError: Se houver erros semânticos
-        """
         try:
             self.visit_program(program)
         except SemanticError as e:
@@ -52,23 +40,42 @@ class SemanticAnalyzer:
     # ==================== VISITADORES ====================
     
     def visit_program(self, node: Program):
-        """Visita o nó Program."""
-        # Declarações de variáveis
+        """
+        Programa LPD:
+          - declara variáveis globais
+          - declara cabeçalhos de procedimentos e funções na tabela de símbolos
+          - analisa o comando composto principal
+        (corpos de funções/procedimentos podem ser analisados depois, se quiser)
+        """
+        # 1) Declara variáveis globais
         if node.var_declarations:
             self.visit_var_declarations(node.var_declarations)
-        
-        # TODO: Procedimentos e funções no futuro
-        
-        # Comando composto principal
+
+        # 2) Declara procedimentos (apenas cabeçalho)
+        for proc in node.procedures:
+            try:
+                # tipo simbólico "procedimento" (não é usado em expressão)
+                self.symbol_table.declare(proc.name, "procedimento", "procedimento")
+            except Exception as e:
+                raise SemanticError(str(e))
+
+        # 3) Declara funções (apenas cabeçalho)
+        for func in node.functions:
+            try:
+                # symbol_type = tipo de retorno ("inteiro" ou "booleano")
+                # category = "funcao"
+                self.symbol_table.declare(func.name, func.return_type, "funcao")
+            except Exception as e:
+                raise SemanticError(str(e))
+
+        # 4) Analisa apenas o corpo principal por enquanto
         self.visit_compound_command(node.compound_command)
     
     def visit_var_declarations(self, node: VarDeclarations):
-        """Visita as declarações de variáveis."""
         for decl in node.declarations:
             self.visit_var_declaration(decl)
     
     def visit_var_declaration(self, node: VarDeclaration):
-        """Visita uma declaração de variável."""
         for identifier in node.identifiers:
             try:
                 self.symbol_table.declare(identifier, node.var_type, 'var')
@@ -76,12 +83,10 @@ class SemanticAnalyzer:
                 raise SemanticError(str(e))
     
     def visit_compound_command(self, node: CompoundCommand):
-        """Visita um comando composto."""
         for command in node.commands:
             self.visit_command(command)
     
     def visit_command(self, node: Command):
-        """Visita um comando (despacha para o tipo específico)."""
         if isinstance(node, Assignment):
             self.visit_assignment(node)
         elif isinstance(node, ReadCommand):
@@ -95,74 +100,72 @@ class SemanticAnalyzer:
         elif isinstance(node, CompoundCommand):
             self.visit_compound_command(node)
         elif isinstance(node, EmptyCommand):
-            pass  # Comando vazio, nada a fazer
+            pass
     
     def visit_assignment(self, node: Assignment):
-        """Visita uma atribuição."""
-        # Verifica se a variável foi declarada
+        """
+        Atribuição:
+          - se id for variável  -> verifica tipo da variável com o da expressão
+          - se id for função    -> trata como comando de retorno (Exp := Resultado;)
+        """
         symbol = self.symbol_table.lookup(node.identifier)
         if symbol is None:
-            raise SemanticError(f"Variável '{node.identifier}' não foi declarada")
+            raise SemanticError(f"Identificador '{node.identifier}' não foi declarado")
         
-        if symbol.category != 'var':
-            raise SemanticError(f"'{node.identifier}' não é uma variável")
-        
-        # Analisa a expressão e obtém seu tipo
         expr_type = self.visit_expression(node.expression)
-        
-        # Verifica compatibilidade de tipos
-        if symbol.symbol_type != expr_type:
+
+        # variável normal
+        if symbol.category == 'var':
+            if symbol.symbol_type != expr_type:
+                raise SemanticError(
+                    f"Tipo incompatível na atribuição: '{node.identifier}' é {symbol.symbol_type}, "
+                    f"mas a expressão é {expr_type}"
+                )
+
+        # nome de função sendo usado como “retorno”
+        elif symbol.category == 'funcao':
+            if symbol.symbol_type != expr_type:
+                raise SemanticError(
+                    f"Tipo de retorno incompatível na função '{node.identifier}': "
+                    f"esperado {symbol.symbol_type}, obtido {expr_type}"
+                )
+            # semanticamente ok: comando de retorno (RETURNF no gerador de código)
+
+        else:
+            # procedimento não pode receber atribuição
             raise SemanticError(
-                f"Tipo incompatível na atribuição: '{node.identifier}' é {symbol.symbol_type}, "
-                f"mas a expressão é {expr_type}"
+                f"'{node.identifier}' não pode receber atribuição (não é variável nem função)"
             )
     
     def visit_read_command(self, node: ReadCommand):
-        """Visita um comando de leitura."""
         symbol = self.symbol_table.lookup(node.identifier)
         if symbol is None:
             raise SemanticError(f"Variável '{node.identifier}' não foi declarada")
-        
         if symbol.category != 'var':
             raise SemanticError(f"'{node.identifier}' não é uma variável")
     
     def visit_write_command(self, node: WriteCommand):
-        """Visita um comando de escrita."""
         self.visit_expression(node.expression)
     
     def visit_if_command(self, node: IfCommand):
-        """Visita um comando condicional."""
-        # A condição deve ser booleana
-        condition_type = self.visit_expression(node.condition)
-        if condition_type != 'booleano':
+        cond_type = self.visit_expression(node.condition)
+        if cond_type != 'booleano':
             raise SemanticError(
-                f"Condição do 'se' deve ser booleana, mas é {condition_type}"
+                f"Condição do 'se' deve ser booleana, mas é {cond_type}"
             )
-        
-        # Visita os comandos
         self.visit_command(node.then_command)
         if node.else_command:
             self.visit_command(node.else_command)
     
     def visit_while_command(self, node: WhileCommand):
-        """Visita um comando de repetição."""
-        # A condição deve ser booleana
-        condition_type = self.visit_expression(node.condition)
-        if condition_type != 'booleano':
+        cond_type = self.visit_expression(node.condition)
+        if cond_type != 'booleano':
             raise SemanticError(
-                f"Condição do 'enquanto' deve ser booleana, mas é {condition_type}"
+                f"Condição do 'enquanto' deve ser booleana, mas é {cond_type}"
             )
-        
-        # Visita o corpo
         self.visit_command(node.body)
     
     def visit_expression(self, node: Expression) -> str:
-        """
-        Visita uma expressão e retorna seu tipo.
-        
-        Returns:
-            str: O tipo da expressão ('inteiro' ou 'booleano')
-        """
         if isinstance(node, BinaryOp):
             return self.visit_binary_op(node)
         elif isinstance(node, UnaryOp):
@@ -179,13 +182,10 @@ class SemanticAnalyzer:
             raise SemanticError(f"Tipo de expressão desconhecido: {type(node)}")
     
     def visit_binary_op(self, node: BinaryOp) -> str:
-        """Visita uma operação binária e retorna seu tipo."""
         left_type = self.visit_expression(node.left)
         right_type = self.visit_expression(node.right)
-        
         op = node.operator
         
-        # Operadores aritméticos: +, -, *, div (inteiro -> inteiro)
         if op in ['+', '-', '*', 'div']:
             if left_type != 'inteiro' or right_type != 'inteiro':
                 raise SemanticError(
@@ -195,7 +195,6 @@ class SemanticAnalyzer:
             node.expr_type = 'inteiro'
             return 'inteiro'
         
-        # Operadores lógicos: e, ou (booleano -> booleano)
         elif op in ['e', 'ou']:
             if left_type != 'booleano' or right_type != 'booleano':
                 raise SemanticError(
@@ -205,14 +204,12 @@ class SemanticAnalyzer:
             node.expr_type = 'booleano'
             return 'booleano'
         
-        # Operadores relacionais: =, !=, <, <=, >, >= (mesmo tipo -> booleano)
         elif op in ['=', '!=', '<', '<=', '>', '>=']:
             if left_type != right_type:
                 raise SemanticError(
                     f"Operador '{op}' requer operandos do mesmo tipo, "
                     f"mas recebeu {left_type} e {right_type}"
                 )
-            # Operadores de ordem (<, <=, >, >=) só para inteiros
             if op in ['<', '<=', '>', '>='] and left_type != 'inteiro':
                 raise SemanticError(
                     f"Operador '{op}' requer operandos inteiros, "
@@ -225,11 +222,9 @@ class SemanticAnalyzer:
             raise SemanticError(f"Operador desconhecido: {op}")
     
     def visit_unary_op(self, node: UnaryOp) -> str:
-        """Visita uma operação unária e retorna seu tipo."""
         operand_type = self.visit_expression(node.operand)
         
         if node.operator == 'nao':
-            # Negação lógica: booleano -> booleano
             if operand_type != 'booleano':
                 raise SemanticError(
                     f"Operador 'nao' requer operando booleano, mas recebeu {operand_type}"
@@ -238,7 +233,6 @@ class SemanticAnalyzer:
             return 'booleano'
         
         elif node.operator == '-':
-            # Menos unário: inteiro -> inteiro
             if operand_type != 'inteiro':
                 raise SemanticError(
                     f"Operador '-' unário requer operando inteiro, mas recebeu {operand_type}"
@@ -250,14 +244,20 @@ class SemanticAnalyzer:
             raise SemanticError(f"Operador unário desconhecido: {node.operator}")
     
     def visit_identifier(self, node: Identifier) -> str:
-        """Visita um identificador e retorna seu tipo."""
+        """
+        Identificador pode ser:
+          - variável (category='var')
+          - função  (category='funcao') usada como chamada de função em expressão
+        Não pode ser procedimento em expressão.
+        """
         symbol = self.symbol_table.lookup(node.name)
         if symbol is None:
-            raise SemanticError(f"Variável '{node.name}' não foi declarada")
+            raise SemanticError(f"Identificador '{node.name}' não foi declarado")
         
-        if symbol.category != 'var':
-            raise SemanticError(f"'{node.name}' não é uma variável")
+        if symbol.category == 'procedimento':
+            raise SemanticError(f"Procedimento '{node.name}' não pode ser usado em expressões")
         
+        # variável ou função: tipo é o tipo do símbolo
         node.expr_type = symbol.symbol_type
         return symbol.symbol_type
 

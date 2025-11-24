@@ -59,6 +59,64 @@ class Block(ASTNode):
     functions: List[Function]
     compound_command: 'CompoundCommand'
 
+# ==================== DECLARAÇÕES DE SUBROTINAS ====================
+
+def declaracao_procedimento(self) -> Procedure:
+    """
+    declaracao_procedimento ::=
+        "procedimento" ID [ "(" lista_parametros ")" ] ";" bloco ";"
+    """
+    self.expect(TokenType.PROCEDIMENTO, "Esperado 'procedimento'")
+    name_token = self.expect(TokenType.ID, "Esperado identificador do procedimento")
+    name = name_token.value
+
+    parameters: List[Parameter] = []
+
+    # Parâmetros opcionais: procedimento P(a: inteiro; b: booleano);
+    if self.match(TokenType.LPAREN):
+        parameters = self.lista_parametros()
+
+    self.expect(TokenType.SEMI, "Esperado ';' após cabeçalho do procedimento")
+
+    block = self.bloco()
+
+    # Exemplo da apostila: 'fim' do proc termina com ';'
+    self.expect(TokenType.SEMI, "Esperado ';' após 'fim' do procedimento")
+
+    return Procedure(name=name, parameters=parameters, block=block)
+
+
+def declaracao_funcao(self) -> Function:
+    """
+    declaracao_funcao ::=
+        "funcao" ID [ "(" lista_parametros ")" ] ":" tipo ";" bloco ";"
+    """
+    self.expect(TokenType.FUNCAO, "Esperado 'funcao'")
+    name_token = self.expect(TokenType.ID, "Esperado identificador da função")
+    name = name_token.value
+
+    parameters: List[Parameter] = []
+
+    # Parâmetros opcionais: funcao soma(a: inteiro; b: inteiro): inteiro;
+    if self.match(TokenType.LPAREN):
+        parameters = self.lista_parametros()
+
+    self.expect(TokenType.COLON, "Esperado ':' após nome/parâmetros da função")
+
+    return_type = self.tipo()  # 'inteiro' ou 'booleano'
+
+    self.expect(TokenType.SEMI, "Esperado ';' após cabeçalho da função")
+
+    block = self.bloco()
+
+    self.expect(TokenType.SEMI, "Esperado ';' após 'fim' da função")
+
+    return Function(
+        name=name,
+        parameters=parameters,
+        return_type=return_type,
+        block=block
+    )
 
 # Comandos
 
@@ -75,6 +133,12 @@ class Command(ASTNode):
 class Assignment(Command):
     identifier: str
     expression: 'Expression'
+
+
+@dataclass
+class ProcedureCall(Command):
+    name: str
+    arguments: List['Expression']
 
 
 @dataclass
@@ -142,6 +206,13 @@ class Number(Expression):
 class Boolean(Expression):
     value: bool
     expr_type: str = 'booleano'
+
+
+@dataclass
+class FunctionCall(Expression):
+    name: str
+    arguments: List['Expression']
+    expr_type: Optional[str] = None
 
 
 # ==================== UTILITÁRIOS ====================
@@ -226,6 +297,19 @@ def ast_to_string(node: ASTNode, indent: int = 0) -> str:
     
     elif isinstance(node, EmptyCommand):
         return f"{prefix}Empty\n"
+
+    elif isinstance(node, ProcedureCall):
+        result = f"{prefix}ProcCall({node.name})\n"
+        for arg in node.arguments:
+            result += ast_to_string(arg, indent + 1)
+        return result
+
+    elif isinstance(node, FunctionCall):
+        result = f"{prefix}FuncCall({node.name})\n"
+        for arg in node.arguments:
+            result += ast_to_string(arg, indent + 1)
+        return result
+
     
     else:
         return f"{prefix}{node.__class__.__name__}\n"
