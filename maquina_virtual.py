@@ -9,7 +9,7 @@ import sys
 from typing import List, Tuple, Optional
 
 
-class MVDError(Exception):
+class ErroMVD(Exception):
     """Exceção base para erros da MVD."""
     pass
 
@@ -80,7 +80,7 @@ class MaquinaVirtual:
             with open(arquivo_asm, 'r', encoding='utf-8') as f:
                 linhas = f.readlines()
         except FileNotFoundError:
-            raise MVDError(f"Arquivo não encontrado: {arquivo_asm}")
+            raise ErroMVD(f"Arquivo não encontrado: {arquivo_asm}")
         
         endereco = 0
         for num_linha, linha in enumerate(linhas, 1):
@@ -184,7 +184,7 @@ class MaquinaVirtual:
                 self._executar_instrucao(instrucao, operandos)
                 
         except Exception as e:
-            raise MVDError(f"Erro na linha {self.i}: {instrucao} {operandos} - {str(e)}")
+            raise ErroMVD(f"Erro na linha {self.i}: {instrucao} {operandos} - {str(e)}")
         
         return self.saida
     
@@ -199,23 +199,23 @@ class MaquinaVirtual:
         # ALLOC m,n - Aloca memória
         elif instr == 'ALLOC':
             if len(ops) != 2:
-                raise MVDError(f"ALLOC espera 2 operandos, recebeu {len(ops)}")
+                raise ErroMVD(f"ALLOC espera 2 operandos, recebeu {len(ops)}")
             m, n = ops[0], ops[1]
             for k in range(n):
                 self.s += 1
                 if self.s >= len(self.M):
-                    raise MVDError("Stack overflow")
+                    raise ErroMVD("Stack overflow")
                 self.M[self.s] = self.M[m + k]
             self.i += 1
         
         # DALLOC m,n - Desaloca memória
         elif instr == 'DALLOC':
             if len(ops) != 2:
-                raise MVDError(f"DALLOC espera 2 operandos, recebeu {len(ops)}")
+                raise ErroMVD(f"DALLOC espera 2 operandos, recebeu {len(ops)}")
             m, n = ops[0], ops[1]
             for k in range(n - 1, -1, -1):
                 if self.s < 0:
-                    raise MVDError("Stack underflow")
+                    raise ErroMVD("Stack underflow")
                 self.M[m + k] = self.M[self.s]
                 self.s -= 1
             self.i += 1
@@ -223,29 +223,29 @@ class MaquinaVirtual:
         # LDC k - Carrega constante
         elif instr == 'LDC':
             if len(ops) != 1:
-                raise MVDError(f"LDC espera 1 operando")
+                raise ErroMVD(f"LDC espera 1 operando")
             self.s += 1
             if self.s >= len(self.M):
-                raise MVDError("Stack overflow")
+                raise ErroMVD("Stack overflow")
             self.M[self.s] = ops[0]
             self.i += 1
         
         # LDV n - Carrega valor
         elif instr == 'LDV':
             if len(ops) != 1:
-                raise MVDError(f"LDV espera 1 operando")
+                raise ErroMVD(f"LDV espera 1 operando")
             self.s += 1
             if self.s >= len(self.M):
-                raise MVDError("Stack overflow")
+                raise ErroMVD("Stack overflow")
             self.M[self.s] = self.M[ops[0]]
             self.i += 1
         
         # STR n - Armazena valor
         elif instr == 'STR':
             if len(ops) != 1:
-                raise MVDError(f"STR espera 1 operando")
+                raise ErroMVD(f"STR espera 1 operando")
             if self.s < 0:
-                raise MVDError("Stack underflow")
+                raise ErroMVD("Stack underflow")
             self.M[ops[0]] = self.M[self.s]
             self.s -= 1
             self.i += 1
@@ -253,7 +253,7 @@ class MaquinaVirtual:
         # ADD - Adição
         elif instr == 'ADD':
             if self.s < 1:
-                raise MVDError("Stack underflow em ADD")
+                raise ErroMVD("Stack underflow em ADD")
             self.M[self.s - 1] = self.M[self.s - 1] + self.M[self.s]
             self.s -= 1
             self.i += 1
@@ -261,7 +261,7 @@ class MaquinaVirtual:
         # SUB - Subtração
         elif instr == 'SUB':
             if self.s < 1:
-                raise MVDError("Stack underflow em SUB")
+                raise ErroMVD("Stack underflow em SUB")
             self.M[self.s - 1] = self.M[self.s - 1] - self.M[self.s]
             self.s -= 1
             self.i += 1
@@ -269,7 +269,7 @@ class MaquinaVirtual:
         # MULT - Multiplicação
         elif instr == 'MULT':
             if self.s < 1:
-                raise MVDError("Stack underflow em MULT")
+                raise ErroMVD("Stack underflow em MULT")
             self.M[self.s - 1] = self.M[self.s - 1] * self.M[self.s]
             self.s -= 1
             self.i += 1
@@ -277,9 +277,9 @@ class MaquinaVirtual:
         # DIVI - Divisão inteira
         elif instr == 'DIVI':
             if self.s < 1:
-                raise MVDError("Stack underflow em DIVI")
+                raise ErroMVD("Stack underflow em DIVI")
             if self.M[self.s] == 0:
-                raise MVDError("Divisão por zero")
+                raise ErroMVD("Divisão por zero")
             self.M[self.s - 1] = self.M[self.s - 1] // self.M[self.s]
             self.s -= 1
             self.i += 1
@@ -287,14 +287,14 @@ class MaquinaVirtual:
         # INV - Inverte sinal
         elif instr == 'INV':
             if self.s < 0:
-                raise MVDError("Stack underflow em INV")
+                raise ErroMVD("Stack underflow em INV")
             self.M[self.s] = -self.M[self.s]
             self.i += 1
         
         # AND - Conjunção lógica
         elif instr == 'AND':
             if self.s < 1:
-                raise MVDError("Stack underflow em AND")
+                raise ErroMVD("Stack underflow em AND")
             self.M[self.s - 1] = 1 if (self.M[self.s - 1] == 1 and self.M[self.s] == 1) else 0
             self.s -= 1
             self.i += 1
@@ -302,7 +302,7 @@ class MaquinaVirtual:
         # OR - Disjunção lógica
         elif instr == 'OR':
             if self.s < 1:
-                raise MVDError("Stack underflow em OR")
+                raise ErroMVD("Stack underflow em OR")
             self.M[self.s - 1] = 1 if (self.M[self.s - 1] == 1 or self.M[self.s] == 1) else 0
             self.s -= 1
             self.i += 1
@@ -310,14 +310,14 @@ class MaquinaVirtual:
         # NEG - Negação lógica
         elif instr == 'NEG':
             if self.s < 0:
-                raise MVDError("Stack underflow em NEG")
+                raise ErroMVD("Stack underflow em NEG")
             self.M[self.s] = 1 - self.M[self.s]
             self.i += 1
         
         # CME - Comparar menor
         elif instr == 'CME':
             if self.s < 1:
-                raise MVDError("Stack underflow em CME")
+                raise ErroMVD("Stack underflow em CME")
             self.M[self.s - 1] = 1 if self.M[self.s - 1] < self.M[self.s] else 0
             self.s -= 1
             self.i += 1
@@ -325,7 +325,7 @@ class MaquinaVirtual:
         # CMA - Comparar maior
         elif instr == 'CMA':
             if self.s < 1:
-                raise MVDError("Stack underflow em CMA")
+                raise ErroMVD("Stack underflow em CMA")
             self.M[self.s - 1] = 1 if self.M[self.s - 1] > self.M[self.s] else 0
             self.s -= 1
             self.i += 1
@@ -333,7 +333,7 @@ class MaquinaVirtual:
         # CEQ - Comparar igual
         elif instr == 'CEQ':
             if self.s < 1:
-                raise MVDError("Stack underflow em CEQ")
+                raise ErroMVD("Stack underflow em CEQ")
             self.M[self.s - 1] = 1 if self.M[self.s - 1] == self.M[self.s] else 0
             self.s -= 1
             self.i += 1
@@ -341,7 +341,7 @@ class MaquinaVirtual:
         # CDIF - Comparar diferente
         elif instr == 'CDIF':
             if self.s < 1:
-                raise MVDError("Stack underflow em CDIF")
+                raise ErroMVD("Stack underflow em CDIF")
             self.M[self.s - 1] = 1 if self.M[self.s - 1] != self.M[self.s] else 0
             self.s -= 1
             self.i += 1
@@ -349,7 +349,7 @@ class MaquinaVirtual:
         # CMEQ - Comparar menor ou igual
         elif instr == 'CMEQ':
             if self.s < 1:
-                raise MVDError("Stack underflow em CMEQ")
+                raise ErroMVD("Stack underflow em CMEQ")
             self.M[self.s - 1] = 1 if self.M[self.s - 1] <= self.M[self.s] else 0
             self.s -= 1
             self.i += 1
@@ -357,7 +357,7 @@ class MaquinaVirtual:
         # CMAQ - Comparar maior ou igual
         elif instr == 'CMAQ':
             if self.s < 1:
-                raise MVDError("Stack underflow em CMAQ")
+                raise ErroMVD("Stack underflow em CMAQ")
             self.M[self.s - 1] = 1 if self.M[self.s - 1] >= self.M[self.s] else 0
             self.s -= 1
             self.i += 1
@@ -365,7 +365,7 @@ class MaquinaVirtual:
         # JMP p - Desvio incondicional
         elif instr == 'JMP':
             if len(ops) != 1:
-                raise MVDError(f"JMP espera 1 operando")
+                raise ErroMVD(f"JMP espera 1 operando")
             label = ops[0]
             # Tenta buscar como string primeiro (labels numéricos são armazenados como string)
             label_str = str(label)
@@ -380,9 +380,9 @@ class MaquinaVirtual:
         # JMPF p - Desvio se falso
         elif instr == 'JMPF':
             if len(ops) != 1:
-                raise MVDError(f"JMPF espera 1 operando")
+                raise ErroMVD(f"JMPF espera 1 operando")
             if self.s < 0:
-                raise MVDError("Stack underflow em JMPF")
+                raise ErroMVD("Stack underflow em JMPF")
             
             label = ops[0]
             if self.M[self.s] == 0:
@@ -406,7 +406,7 @@ class MaquinaVirtual:
         elif instr == 'RD':
             self.s += 1
             if self.s >= len(self.M):
-                raise MVDError("Stack overflow")
+                raise ErroMVD("Stack overflow")
             
             if self.indice_entrada < len(self.entrada):
                 self.M[self.s] = self.entrada[self.indice_entrada]
@@ -417,13 +417,13 @@ class MaquinaVirtual:
                     valor = int(input("Digite um valor inteiro: "))
                     self.M[self.s] = valor
                 except ValueError:
-                    raise MVDError("Entrada inválida: esperado inteiro")
+                    raise ErroMVD("Entrada inválida: esperado inteiro")
             self.i += 1
         
         # PRN - Impressão
         elif instr == 'PRN':
             if self.s < 0:
-                raise MVDError("Stack underflow em PRN")
+                raise ErroMVD("Stack underflow em PRN")
             print(self.M[self.s])
             self.saida.append(self.M[self.s])
             self.s -= 1
@@ -432,10 +432,10 @@ class MaquinaVirtual:
         # CALL p - Chama procedimento/função
         elif instr == 'CALL':
             if len(ops) != 1:
-                raise MVDError(f"CALL espera 1 operando")
+                raise ErroMVD(f"CALL espera 1 operando")
             self.s += 1
             if self.s >= len(self.M):
-                raise MVDError("Stack overflow")
+                raise ErroMVD("Stack overflow")
             self.M[self.s] = self.i + 1
             
             label = ops[0]
@@ -451,14 +451,14 @@ class MaquinaVirtual:
         # RETURN - Retorna de procedimento
         elif instr == 'RETURN':
             if self.s < 0:
-                raise MVDError("Stack underflow em RETURN")
+                raise ErroMVD("Stack underflow em RETURN")
             self.i = self.M[self.s]
             self.s -= 1
         
                 # RETURNF - Retorna de função (com valor)
         elif instr == 'RETURNF':
             if self.s < 1:
-                raise MVDError("Stack underflow em RETURNF")
+                raise ErroMVD("Stack underflow em RETURNF")
             # Convenção:
             #   antes do RETURNF:
             #       M[s-1] = endereço de retorno (empilhado pelo CALL)
@@ -477,7 +477,7 @@ class MaquinaVirtual:
             self.executando = False
         
         else:
-            raise MVDError(f"Instrução desconhecida: {instr}")
+            raise ErroMVD(f"Instrução desconhecida: {instr}")
 
 
 def main():
@@ -515,7 +515,7 @@ def main():
         print("Execução concluída com sucesso!")
         print("=" * 60)
         
-    except MVDError as e:
+    except ErroMVD as e:
         print(f"\n[ERRO] Erro na MVD: {e}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:

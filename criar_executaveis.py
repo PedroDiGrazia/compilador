@@ -1,81 +1,91 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
-import sys
+"""
+Script para criar executáveis do Compilador LPD e Máquina Virtual.
+Utiliza PyInstaller para gerar executáveis standalone.
+
+Uso:
+    python3 criar_executaveis.py
+
+Pré-requisitos:
+    pip install pyinstaller
+"""
+
 import subprocess
+import sys
+import os
 
-def criar_executaveis():
-    # Cria executáveis Windows usando PyInstaller.
+
+def criar_executavel(script: str, nome: str):
+    """Cria um executável a partir de um script Python."""
+    print(f"\n{'='*50}")
+    print(f"Criando executável: {nome}")
+    print(f"{'='*50}")
     
-    print("=" * 70)
-    print("CRIANDO EXECUTÁVEIS WINDOWS")
-    print("=" * 70)
+    comando = [
+        sys.executable, '-m', 'PyInstaller',
+        '--onefile',
+        '--name', nome,
+        '--clean',
+        script
+    ]
     
-    # Verifica se PyInstaller está instalado
     try:
-        import PyInstaller
-        print("[OK] PyInstaller encontrado")
-    except ImportError:
-        print("[AVISO] PyInstaller não encontrado. Instalando...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=True)
-        print("[OK] PyInstaller instalado")
-    
-    print("\n" + "=" * 70)
-    print("1. Criando compilador.exe...")
-    print("=" * 70)
-    
-    # Criar executável do compilador
-    cmd_compilador = [
-        sys.executable,   
-            "-m", "PyInstaller",
-            "--onefile",
-            "--name=compilador",
-            "--clean",
-            "main.py"
-    ]
-   
-    result = subprocess.run(cmd_compilador, capture_output=True, text=True)
-    if result.returncode == 0:
-        print("[OK] compilador.exe criado com sucesso!")
-    else:
-        print(f"[ERRO] Erro ao criar compilador.exe:\n{result.stderr}")
+        resultado = subprocess.run(comando, check=True)
+        print(f"\n[OK] Executável '{nome}' criado com sucesso!")
+        print(f"     Localização: dist/{nome}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"\n[ERRO] Falha ao criar executável '{nome}'")
+        print(f"       Código de erro: {e.returncode}")
         return False
-    
-    print("\n" + "=" * 70)
-    print("2. Criando maquina_virtual.exe...")
-    print("=" * 70)
-    
-    # Criar executável da máquina virtual
-    cmd_mv = [
-        sys.executable,
-            "-m", 
-            "PyInstaller",
-            "--onefile",
-            "--name=maquina_virtual",
-            "--clean",
-            "maquina_virtual.py"
-    ]
+    except FileNotFoundError:
+        print("\n[ERRO] PyInstaller não encontrado!")
+        print("       Instale com: pip install pyinstaller")
+        return False
 
+
+def main():
+    """Função principal."""
+    print("=" * 60)
+    print("GERADOR DE EXECUTÁVEIS - COMPILADOR LPD")
+    print("=" * 60)
     
-    result = subprocess.run(cmd_mv, capture_output=True, text=True)
-    if result.returncode == 0:
-        print("[OK] maquina_virtual.exe criado com sucesso!")
+    # Verifica se os arquivos existem
+    arquivos = [
+        ('compilador.py', 'compilador_lpd'),
+        ('maquina_virtual.py', 'maquina_virtual'),
+        ('interface.py', 'interface_lpd')
+    ]
+    
+    for script, _ in arquivos:
+        if not os.path.exists(script):
+            print(f"\n[ERRO] Arquivo '{script}' não encontrado!")
+            print("       Execute este script na pasta do projeto.")
+            sys.exit(1)
+    
+    # Cria os executáveis
+    sucessos = 0
+    for script, nome in arquivos:
+        if criar_executavel(script, nome):
+            sucessos += 1
+    
+    # Resumo
+    print("\n" + "=" * 60)
+    print("RESUMO")
+    print("=" * 60)
+    print(f"Executáveis criados: {sucessos}/{len(arquivos)}")
+    
+    if sucessos == len(arquivos):
+        print("\n[OK] Todos os executáveis foram criados com sucesso!")
+        print("\nExecutáveis disponíveis em:")
+        print("  - dist/compilador_lpd")
+        print("  - dist/maquina_virtual")
+        print("  - dist/interface_lpd")
     else:
-        print(f"[ERRO] Erro ao criar maquina_virtual.exe:\n{result.stderr}")
-        return False
-    
-    print("\n" + "=" * 70)
-    print("[OK] EXECUTAVEIS CRIADOS COM SUCESSO!")
-    print("=" * 70)
-    print("\nArquivos gerados na pasta 'dist/':")
-    print("  - dist/compilador.exe")
-    print("  - dist/maquina_virtual.exe")
-    print("\nEsses arquivos podem ser executados em Windows sem Python!")
-    
-    return True
+        print("\n[AVISO] Alguns executáveis não foram criados.")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
-    sucesso = criar_executaveis()
-    sys.exit(0 if sucesso else 1)
-
+    main()
