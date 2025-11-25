@@ -15,8 +15,7 @@ env/
 ENV/
 
 # Arquivos gerados pelo compilador
-*.asm
-saida.asm
+*.obj
 
 # IDEs
 .vscode/

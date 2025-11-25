@@ -17,7 +17,7 @@ from ast_nodes import ast_to_string
 def print_usage():
     """Imprime instruções de uso."""
     print("""
-Uso: python3 main.py <arquivo.lpd> [opções]
+Uso: python3 main.py <arquivo.txt> [opções]
 
 Opções:
   --lex              Apenas análise léxica (lista tokens)
@@ -25,14 +25,14 @@ Opções:
   --parse            Análise léxica + sintática (mostra AST)
   --semantic         Análise léxica + sintática + semântica (mostra tabela de símbolos)
   --compile          Compilação completa (padrão)
-  -o <arquivo>       Especifica arquivo de saída para código gerado (padrão: saida.asm)
+  -o <arquivo>       Especifica arquivo de saída para código gerado (padrão: saida.obj)
   --help, -h         Mostra esta mensagem
 
 Exemplos:
-  python3 main.py programa.lpd                    # Compilação completa
-  python3 main.py programa.lpd --lex              # Apenas tokens
-  python3 main.py programa.lpd --parse            # Mostra AST
-  python3 main.py programa.lpd -o programa.asm    # Especifica saída
+  python3 main.py programa.txt                    # Compilação completa
+  python3 main.py programa.txt --lex              # Apenas tokens
+  python3 main.py programa.txt --parse            # Mostra AST
+  python3 main.py programa.txt -o programa.obj    # Especifica saída
 """)
 
 
@@ -95,7 +95,7 @@ def run_semantic(source: str):
     print(symbol_table)
 
 
-def compile_program(source: str, output_file: str = "saida.asm"):
+def compile_program(source: str, output_file: str = "saida.obj"):
     """Executa compilação completa."""
     print("=== COMPILADOR LPD ===\n")
     
@@ -159,7 +159,7 @@ def main():
     
     # Determina modo de operação
     mode = "compile"  # padrão
-    output_file = "saida.asm"
+    output_file = "saida.obj"
     
     if "--lex" in sys.argv:
         mode = "lex"

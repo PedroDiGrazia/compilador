@@ -58,7 +58,7 @@ class CompiladorGUI:
         main_frame.rowconfigure(2, weight=1)
         
         # ==== SEÇÃO 1: Seleção de Arquivo ====
-        arquivo_frame = ttk.LabelFrame(main_frame, text="1. Arquivo Fonte (.lpd)", padding="10")
+        arquivo_frame = ttk.LabelFrame(main_frame, text="1. Arquivo Fonte (.txt)", padding="10")
         arquivo_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
         arquivo_frame.columnconfigure(1, weight=1)
         
@@ -70,7 +70,15 @@ class CompiladorGUI:
         compilar_frame = ttk.LabelFrame(main_frame, text="2. Compilar", padding="10")
         compilar_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
         
-        # Botões de ação
+        # Linha 1: Analisadores individuais
+        analise_frame = ttk.Frame(compilar_frame)
+        analise_frame.pack(fill=tk.X)
+        
+        ttk.Button(analise_frame, text="Léxico", command=self.executar_lexico, width=15).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(analise_frame, text="Sintático", command=self.executar_sintatico, width=15).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(analise_frame, text="Semântico", command=self.executar_semantico, width=15).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        # Linha 2: Compilar e Executar
         btn_frame = ttk.Frame(compilar_frame)
         btn_frame.pack(fill=tk.X)
         
@@ -85,18 +93,10 @@ class CompiladorGUI:
         
         # Área de texto com scroll
         self.texto_saida = scrolledtext.ScrolledText(saida_frame, height=20, wrap=tk.WORD, 
-                                                      bg='#1e1e1e', fg='#d4d4d4',
-                                                      insertbackground='white',
+                                                      bg='white', fg='black',
+                                                      insertbackground='black',
                                                       font=('Consolas', 10))
         self.texto_saida.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # Configurar tags para cores
-        self.texto_saida.tag_config("erro", foreground="#f44747")
-        self.texto_saida.tag_config("sucesso", foreground="#4ec9b0")
-        self.texto_saida.tag_config("info", foreground="#569cd6")
-        self.texto_saida.tag_config("input", foreground="#ce9178")
-        self.texto_saida.tag_config("output", foreground="#dcdcaa")
-        self.texto_saida.tag_config("prompt", foreground="#9cdcfe")
         
         # Frame de entrada (para inputs interativos)
         input_frame = ttk.Frame(saida_frame)
@@ -119,17 +119,22 @@ class CompiladorGUI:
         status_bar.grid(row=1, column=0, sticky=(tk.W, tk.E))
         
         # Mensagem inicial
-        self.adicionar_saida("Compilador LPD - Selecione um arquivo .lpd para começar\n", "info")
+        self.adicionar_saida("Compilador LPD - Selecione um arquivo .txt para começar\n", "info")
         
     def selecionar_arquivo(self):
-        """Abre diálogo para selecionar arquivo .lpd."""
+        """Abre diálogo para selecionar arquivo .txt."""
         filename = filedialog.askopenfilename(
             title="Selecionar arquivo LPD",
-            filetypes=[("Arquivos LPD", "*.lpd"), ("Todos os arquivos", "*.*")]
+            filetypes=[("Arquivos LPD", "*.txt"), ("Todos os arquivos", "*.*")]
         )
         if filename:
             self.arquivo_lpd.set(filename)
-            self.arquivo_asm.set(filename.replace('.lpd', '.asm'))
+            # Salva .obj na pasta compilado
+            dir_fonte = os.path.dirname(filename)
+            nome_base = os.path.basename(filename).replace('.txt', '.obj')
+            pasta_compilado = os.path.join(dir_fonte, 'compilado')
+            os.makedirs(pasta_compilado, exist_ok=True)
+            self.arquivo_asm.set(os.path.join(pasta_compilado, nome_base))
             self.status.set(f"Arquivo: {os.path.basename(filename)}")
             self.adicionar_saida(f"\n> Arquivo carregado: {filename}\n", "sucesso")
             
@@ -147,7 +152,7 @@ class CompiladorGUI:
     def executar_comando(self, comando, titulo):
         """Executa um comando e mostra o resultado."""
         if not self.arquivo_lpd.get():
-            messagebox.showwarning("Aviso", "Selecione um arquivo .lpd primeiro!")
+            messagebox.showwarning("Aviso", "Selecione um arquivo .txt primeiro!")
             return
             
         self.adicionar_saida(f"\n{'='*50}\n", "info")
@@ -200,11 +205,16 @@ class CompiladorGUI:
     def compilar(self):
         """Compila o programa."""
         if not self.arquivo_lpd.get():
-            messagebox.showwarning("Aviso", "Selecione um arquivo .lpd primeiro!")
+            messagebox.showwarning("Aviso", "Selecione um arquivo .txt primeiro!")
             return
             
         if not self.arquivo_asm.get():
-            self.arquivo_asm.set(self.arquivo_lpd.get().replace('.lpd', '.asm'))
+            # Salva .obj na pasta compilado
+            dir_fonte = os.path.dirname(self.arquivo_lpd.get())
+            nome_base = os.path.basename(self.arquivo_lpd.get()).replace('.txt', '.obj')
+            pasta_compilado = os.path.join(dir_fonte, 'compilado')
+            os.makedirs(pasta_compilado, exist_ok=True)
+            self.arquivo_asm.set(os.path.join(pasta_compilado, nome_base))
             
         cmd = f"python3 main.py {self.arquivo_lpd.get()} -o {self.arquivo_asm.get()}"
         self.executar_comando(cmd, "Compilação")

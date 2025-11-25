@@ -1,6 +1,0 @@
-programa teste;
-var x: inteiro;
-
-inicio
-   x := 10;
-fim.

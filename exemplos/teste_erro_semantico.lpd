@@ -1,8 +1,0 @@
-programa teste_erro;
-var x: inteiro;
-
-inicio
-   x := 10;
-   y := 20
-fim.
-
