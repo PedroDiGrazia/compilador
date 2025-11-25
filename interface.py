@@ -216,7 +216,7 @@ class InterfaceCompilador:
             os.makedirs(pasta_compilado, exist_ok=True)
             self.arquivo_objeto.set(os.path.join(pasta_compilado, nome_base))
             
-        cmd = f"python3 compilador.py {self.arquivo_fonte.get()} -s {self.arquivo_objeto.get()}"
+        cmd = f"python3 compilador.py {self.arquivo_fonte.get()}"
         self.executar_comando(cmd, "Compilação")
         
     def executar_mv(self):

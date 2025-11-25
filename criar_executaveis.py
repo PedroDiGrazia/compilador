@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Script para criar executáveis do Compilador LPD e Máquina Virtual.
 Utiliza PyInstaller para gerar executáveis standalone.

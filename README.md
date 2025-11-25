@@ -7,13 +7,15 @@ Compilador para a Linguagem de Programação Didática (LPD).
 ### Compilar um programa
 
 ```bash
-python3 compilador.py programa.txt -s programa.obj
+python3 compilador.py programas/programa.txt
 ```
+
+O arquivo compilado é gerado em: `programas/compilado/programa.obj`
 
 ### Executar na Máquina Virtual
 
 ```bash
-python3 maquina_virtual.py programa.obj
+python3 maquina_virtual.py programas/compilado/programa.obj
 ```
 
 ### Interface Gráfica
@@ -24,13 +26,12 @@ python3 interface.py
 
 ## Opções do Compilador
 
-| Opção          | Descrição                              |
-| -------------- | -------------------------------------- |
-| `--lexico`     | Apenas análise léxica                  |
-| `--sintatico`  | Análise léxica + sintática             |
-| `--semantico`  | Análise léxica + sintática + semântica |
-| `-s <arquivo>` | Especifica arquivo de saída            |
-| `--ajuda`      | Mostra ajuda                           |
+| Opção         | Descrição                              |
+| ------------- | -------------------------------------- |
+| `--lexico`    | Apenas análise léxica                  |
+| `--sintatico` | Análise léxica + sintática             |
+| `--semantico` | Análise léxica + sintática + semântica |
+| `--ajuda`     | Mostra ajuda                           |
 
 ## Estrutura de Pastas
 

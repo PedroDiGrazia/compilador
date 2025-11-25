@@ -4,7 +4,7 @@ Implementa todas as fases de compilação: léxica, sintática, semântica e ger
 """
 
 import sys
-import json
+import os
 from analisador_lexico import AnalisadorLexico
 from tokens import TipoToken, ErroLexico, ErroSintatico, ErroSemantico
 from analisador_sintatico import AnalisadorSintatico
@@ -20,45 +20,29 @@ Uso: python3 compilador.py <arquivo.txt> [opções]
 
 Opções:
   --lexico           Apenas análise léxica (lista tokens)
-  --lexico-json      Análise léxica com saída em JSON
   --sintatico        Análise léxica + sintática (mostra AST)
   --semantico        Análise léxica + sintática + semântica (mostra tabela de símbolos)
-  --compilar         Compilação completa (padrão)
-  -s <arquivo>       Especifica arquivo de saída para código gerado (padrão: saida.obj)
-  --ajuda, -a        Mostra esta mensagem
+  --ajuda            Mostra esta mensagem
 
 Exemplos:
-  python3 compilador.py programa.txt                    # Compilação completa
-  python3 compilador.py programa.txt --lexico           # Apenas tokens
-  python3 compilador.py programa.txt --sintatico        # Mostra AST
-  python3 compilador.py programa.txt -s programa.obj    # Especifica saída
+  python3 compilador.py programa.txt              # Compilação completa
+  python3 compilador.py programa.txt --lexico     # Apenas tokens
+  python3 compilador.py programa.txt --sintatico  # Mostra AST
+
+O arquivo compilado é gerado em: <pasta_do_fonte>/compilado/<nome>.obj
 """)
 
 
-def executar_lexico(codigo_fonte: str, como_json: bool = False):
+def executar_lexico(codigo_fonte: str):
     """Executa apenas a análise léxica."""
     tokens = AnalisadorLexico(codigo_fonte).obter_tokens()
     
-    if como_json:
-        dados = [
-            {
-                "tipo": t.tipo.name,
-                "lexema": t.lexema,
-                "linha": t.linha,
-                "coluna": t.coluna,
-                "valor": t.valor,
-            }
-            for t in tokens
-            if t.tipo is not TipoToken.FIM_ARQUIVO
-        ]
-        print(json.dumps(dados, ensure_ascii=False, indent=2))
-    else:
-        print("=== ANÁLISE LÉXICA ===\n")
-        for t in tokens:
-            if t.tipo is not TipoToken.FIM_ARQUIVO:
-                valor_str = f" -> {t.valor}" if t.valor is not None else ""
-                print(f"{t.linha:3d}:{t.coluna:<3d} {t.tipo.name:12s} {t.lexema!r}{valor_str}")
-        print(f"\nTotal de tokens: {len([t for t in tokens if t.tipo != TipoToken.FIM_ARQUIVO])}")
+    print("=== ANÁLISE LÉXICA ===\n")
+    for t in tokens:
+        if t.tipo is not TipoToken.FIM_ARQUIVO:
+            valor_str = f" -> {t.valor}" if t.valor is not None else ""
+            print(f"{t.linha:3d}:{t.coluna:<3d} {t.tipo.name:12s} {t.lexema!r}{valor_str}")
+    print(f"\nTotal de tokens: {len([t for t in tokens if t.tipo != TipoToken.FIM_ARQUIVO])}")
 
 
 def executar_sintatico(codigo_fonte: str):
@@ -158,32 +142,25 @@ def main():
     
     # Determina modo de operação
     modo = "compilar"  # padrão
-    arquivo_saida = "saida.obj"
     
     if "--lexico" in sys.argv:
         modo = "lexico"
-    elif "--lexico-json" in sys.argv:
-        modo = "lexico-json"
     elif "--sintatico" in sys.argv:
         modo = "sintatico"
     elif "--semantico" in sys.argv:
         modo = "semantico"
     
-    # Verifica se tem arquivo de saída customizado
-    if "-s" in sys.argv:
-        try:
-            idx = sys.argv.index("-s")
-            arquivo_saida = sys.argv[idx + 1]
-        except (IndexError, ValueError):
-            print("Erro: Opção -s requer nome de arquivo")
-            sys.exit(1)
+    # Define arquivo de saída na pasta compilado
+    diretorio_fonte = os.path.dirname(arquivo_entrada)
+    nome_base = os.path.basename(arquivo_entrada).replace('.txt', '.obj')
+    pasta_compilado = os.path.join(diretorio_fonte, 'compilado')
+    os.makedirs(pasta_compilado, exist_ok=True)
+    arquivo_saida = os.path.join(pasta_compilado, nome_base)
     
     # Executa compilação
     try:
         if modo == "lexico":
-            executar_lexico(codigo_fonte, como_json=False)
-        elif modo == "lexico-json":
-            executar_lexico(codigo_fonte, como_json=True)
+            executar_lexico(codigo_fonte)
         elif modo == "sintatico":
             executar_sintatico(codigo_fonte)
         elif modo == "semantico":
