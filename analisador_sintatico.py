@@ -1,6 +1,6 @@
 """
 Analisador Sintático do Compilador LPD
-Implementa análise descendente recursiva para a gramática da linguagem.
+Implementa análise descendente para a gramática da linguagem.
 """
 
 from typing import List, Optional

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Compilador LPD - Linguagem de Programação Didática
 Implementa todas as fases de compilação: léxica, sintática, semântica e geração de código.

@@ -1,7 +1,7 @@
 """
 Analisador Semântico do Compilador LPD
 Realiza análise semântica da AST: verificação de tipos, declarações e compatibilidade.
-Utiliza escopos hierárquicos para suportar variáveis locais e shadowing.
+Utiliza escopos.
 """
 
 from arvore_sintatica import (
@@ -17,16 +17,8 @@ from tokens import ErroSemantico
 
 class AnalisadorSemantico:
     """
-    Analisador semântico que percorre a AST verificando:
-    - Declaração antes do uso
-    - Tipos compatíveis
-    - Declaração única por escopo (permite shadowing entre escopos)
-    - Operadores compatíveis com tipos
-    
-    Implementa escopos hierárquicos conforme notas de aula (seção 7.7):
-    - Cada função/procedimento cria um novo escopo
-    - Variáveis locais podem ter mesmo nome que globais (shadowing)
-    - Endereços são calculados sequencialmente por escopo
+    Analisador semântico que percorre a AST.
+    Implementa escopos hierárquicos.
     """
     
     def __init__(self):
@@ -63,33 +55,32 @@ class AnalisadorSemantico:
           3. Processa funções e procedimentos (com seus escopos)
           4. Analisa o comando composto principal
         """
-        # 1) Primeiro, reserva posições de retorno para TODAS as funções do nível global
-        # Isso deve vir ANTES das variáveis globais
+        # Reserva posições de retorno para todas as funções do nível global
         for func in no.funcoes:
             try:
                 self.tabela_simbolos.declarar_retorno_funcao(func.nome, func.tipo_retorno)
             except Exception as e:
                 raise ErroSemantico(str(e))
         
-        # 2) Declara variáveis globais
+        # Declara variáveis globais
         if no.declaracoes_variaveis:
             self.analisa_declaracoes_variaveis(no.declaracoes_variaveis)
         
-        # 3) Declara procedimentos do nível global (sem alocação de memória)
+        # Declara procedimentos do nível global (sem alocação de memória)
         for proc in no.procedimentos:
             try:
                 self.tabela_simbolos.declarar_procedimento(proc.nome)
             except Exception as e:
                 raise ErroSemantico(str(e))
         
-        # 4) Processa blocos de funções e procedimentos (com escopos aninhados)
+        # Processa blocos de funções e procedimentos (com escopos aninhados)
         for func in no.funcoes:
             self.analisa_funcao(func)
         
         for proc in no.procedimentos:
             self.analisa_procedimento(proc)
         
-        # 5) Analisa o corpo principal
+        # Analisa o corpo principal
         self.analisa_comando_composto(no.comando_composto)
     
     # ==================== FUNÇÕES E PROCEDIMENTOS ====================
@@ -188,7 +179,6 @@ class AnalisadorSemantico:
     def analisa_declaracao_variavel(self, no: DeclaracaoVariavel):
         """
         Declara variáveis no escopo atual.
-        Permite shadowing (variável local com mesmo nome que global).
         """
         for identificador in no.identificadores:
             try:

@@ -48,9 +48,6 @@ class MaquinaVirtual:
     def __init__(self, tamanho_pilha: int = 10000):
         """
         Inicializa a Máquina Virtual.
-        
-        Args:
-            tamanho_pilha: Tamanho máximo da pilha de dados
         """
         # Memória de dados (pilha)
         self.M: List[int] = [0] * tamanho_pilha
@@ -72,9 +69,6 @@ class MaquinaVirtual:
     def carregar_programa(self, arquivo_asm: str):
         """
         Carrega programa assembly na memória.
-        
-        Args:
-            arquivo_asm: Caminho para o arquivo .asm
         """
         try:
             with open(arquivo_asm, 'r', encoding='utf-8') as f:
@@ -153,13 +147,6 @@ class MaquinaVirtual:
     def executar(self, entrada: Optional[List[int]] = None, debug: bool = False):
         """
         Executa o programa carregado.
-        
-        Args:
-            entrada: Lista de valores inteiros para entrada (comandos RD)
-            debug: Se True, imprime informações de debug
-        
-        Returns:
-            Lista de valores impressos (comandos PRN)
         """
         self.debug = debug
         self.executando = True

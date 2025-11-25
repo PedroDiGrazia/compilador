@@ -84,17 +84,6 @@ class TabelaSimbolos:
     def declarar(self, nome: str, tipo: str, categoria: str = 'variavel') -> Simbolo:
         """
         Declara um novo símbolo no escopo atual.
-        
-        Args:
-            nome: Nome do identificador
-            tipo: Tipo ('inteiro', 'booleano', etc)
-            categoria: Categoria ('variavel', 'procedimento', 'funcao')
-        
-        Returns:
-            Simbolo: O símbolo criado
-        
-        Raises:
-            Exception: Se o símbolo já foi declarado no escopo atual
         """
         escopo_atual = self.escopos[self.nivel_escopo_atual]
         
@@ -127,13 +116,6 @@ class TabelaSimbolos:
         """
         Reserva uma posição de memória para o valor de retorno de uma função.
         O símbolo é declarado com categoria 'funcao'.
-        
-        Args:
-            nome_funcao: Nome da função
-            tipo_retorno: Tipo de retorno ('inteiro' ou 'booleano')
-        
-        Returns:
-            Simbolo: O símbolo da função com endereço de retorno
         """
         escopo_atual = self.escopos[self.nivel_escopo_atual]
         
@@ -160,12 +142,6 @@ class TabelaSimbolos:
     def declarar_procedimento(self, nome_procedimento: str) -> Simbolo:
         """
         Declara um procedimento (sem alocação de memória).
-        
-        Args:
-            nome_procedimento: Nome do procedimento
-        
-        Returns:
-            Simbolo: O símbolo do procedimento
         """
         escopo_atual = self.escopos[self.nivel_escopo_atual]
         
@@ -186,12 +162,6 @@ class TabelaSimbolos:
     def buscar(self, nome: str) -> Optional[Simbolo]:
         """
         Busca um símbolo nos escopos (do mais interno ao mais externo).
-        
-        Args:
-            nome: Nome do identificador a buscar
-        
-        Returns:
-            Simbolo ou None: O símbolo encontrado ou None se não existir
         """
         # Procura do escopo mais interno para o mais externo
         for nivel in range(self.nivel_escopo_atual, -1, -1):

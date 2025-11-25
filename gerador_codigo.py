@@ -1,6 +1,6 @@
 """
 Gerador de Código do Compilador LPD
-Implementa geração de código para a MVD conforme notas de aula (seção 7.7)
+Implementa geração de código para a MVD
 """
 
 from arvore_sintatica import (
@@ -79,21 +79,6 @@ class GeradorCodigo:
     def gerar(self, programa: Programa, tabela_simbolos: TabelaSimbolos = None) -> List[str]:
         """
         Gera código para o programa completo.
-        
-        Estrutura conforme notas de aula (seção 7.7):
-        
-        START
-        ALLOC m,n      ; retorno de funções (se houver)
-        ALLOC m,n      ; variáveis globais
-        JMP Lmain      ; pula subrotinas
-        
-        [código das subrotinas]
-        
-        Lmain NULL
-        [comandos principais]
-        DALLOC m,n     ; variáveis globais
-        DALLOC m,n     ; retorno de funções
-        HLT
         """
         self.instrucoes = []
         self.contador_rotulos = 1
@@ -179,16 +164,6 @@ class GeradorCodigo:
     def _gerar_funcao(self, no: Funcao, endereco_pai: int):
         """
         Gera código para uma função.
-        
-        Estrutura:
-        Lx NULL
-        ALLOC m,n          ; variáveis locais
-        JMP Lcorpo         ; pula subrotinas aninhadas (só se houver)
-        [subrotinas aninhadas]
-        Lcorpo NULL        ; (só se houver subrotinas aninhadas)
-        [comandos]
-        DALLOC m,n
-        RETURN
         """
         rotulo = self.obter_rotulo_subrotina(no.nome)
         self.emitir(f"{rotulo} \tNULL")
@@ -256,8 +231,6 @@ class GeradorCodigo:
     def _gerar_procedimento(self, no: Procedimento, endereco_pai: int):
         """
         Gera código para um procedimento.
-        
-        Estrutura similar à função, mas sem valor de retorno.
         """
         rotulo = self.obter_rotulo_subrotina(no.nome)
         self.emitir(f"{rotulo} \tNULL")

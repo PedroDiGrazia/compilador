@@ -2,12 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Interface Gráfica para o Compilador LPD + Máquina Virtual
-
-Interface gráfica simples usando tkinter para facilitar o uso do compilador
-e da máquina virtual de forma visual e intuitiva.
-
-Autor: Projeto Compiladores - PUC
-Data: 2025
 """
 
 import tkinter as tk
