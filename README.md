@@ -10,12 +10,12 @@ Compilador para a Linguagem de Programação Didática (LPD).
 python3 compilador.py programas/programa.txt
 ```
 
-O arquivo compilado é gerado em: `programas/compilado/programa.obj`
+O arquivo compilado `.obj` é gerado na mesma pasta do compilador.
 
 ### Executar na Máquina Virtual
 
 ```bash
-python3 maquina_virtual.py programas/compilado/programa.obj
+python3 maquina_virtual.py programa.obj
 ```
 
 ### Interface Gráfica
@@ -37,5 +37,38 @@ python3 interface.py
 
 ```
 programas/           # Arquivos fonte (.txt)
-programas/compilado/ # Arquivos compilados (.obj)
+```
+
+## Executáveis (Windows)
+
+### Gerar executáveis
+
+```bash
+python criar_executaveis.py
+```
+
+Os executáveis são gerados na pasta `dist/`.
+
+### Usar os executáveis
+
+**Interface Gráfica** (recomendado):
+
+- Duplo clique em `interface.exe`
+
+**Linha de comando**:
+
+```cmd
+compilador.exe programa.txt
+maquina_virtual.exe programa.obj
+```
+
+### Estrutura para distribuição
+
+```
+minha_pasta/
+├── compilador.exe
+├── maquina_virtual.exe
+├── interface.exe
+├── programa.txt      # arquivo fonte
+└── programa.obj      # gerado após compilar
 ```

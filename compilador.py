@@ -29,7 +29,7 @@ Exemplos:
   python3 compilador.py programa.txt --lexico     # Apenas tokens
   python3 compilador.py programa.txt --sintatico  # Mostra AST
 
-O arquivo compilado é gerado em: <pasta_do_fonte>/compilado/<nome>.obj
+O arquivo compilado é gerado na mesma pasta do compilador.
 """)
 
 
@@ -150,12 +150,9 @@ def main():
     elif "--semantico" in sys.argv:
         modo = "semantico"
     
-    # Define arquivo de saída na pasta compilado
-    diretorio_fonte = os.path.dirname(arquivo_entrada)
+    # Define arquivo de saída na mesma pasta do compilador
     nome_base = os.path.basename(arquivo_entrada).replace('.txt', '.obj')
-    pasta_compilado = os.path.join(diretorio_fonte, 'compilado')
-    os.makedirs(pasta_compilado, exist_ok=True)
-    arquivo_saida = os.path.join(pasta_compilado, nome_base)
+    arquivo_saida = nome_base
     
     # Executa compilação
     try:

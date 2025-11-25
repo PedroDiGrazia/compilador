@@ -129,12 +129,9 @@ class InterfaceCompilador:
         )
         if nome_arquivo:
             self.arquivo_fonte.set(nome_arquivo)
-            # Salva .obj na pasta compilado
-            diretorio_fonte = os.path.dirname(nome_arquivo)
+            # Salva .obj na mesma pasta do executável
             nome_base = os.path.basename(nome_arquivo).replace('.txt', '.obj')
-            pasta_compilado = os.path.join(diretorio_fonte, 'compilado')
-            os.makedirs(pasta_compilado, exist_ok=True)
-            self.arquivo_objeto.set(os.path.join(pasta_compilado, nome_base))
+            self.arquivo_objeto.set(nome_base)
             self.status.set(f"Arquivo: {os.path.basename(nome_arquivo)}")
             self.adicionar_saida(f"\n> Arquivo carregado: {nome_arquivo}\n", "sucesso")
             
@@ -209,12 +206,9 @@ class InterfaceCompilador:
             return
             
         if not self.arquivo_objeto.get():
-            # Salva .obj na pasta compilado
-            diretorio_fonte = os.path.dirname(self.arquivo_fonte.get())
+            # Salva .obj na mesma pasta do executável
             nome_base = os.path.basename(self.arquivo_fonte.get()).replace('.txt', '.obj')
-            pasta_compilado = os.path.join(diretorio_fonte, 'compilado')
-            os.makedirs(pasta_compilado, exist_ok=True)
-            self.arquivo_objeto.set(os.path.join(pasta_compilado, nome_base))
+            self.arquivo_objeto.set(nome_base)
             
         cmd = f"python3 compilador.py {self.arquivo_fonte.get()}"
         self.executar_comando(cmd, "Compilação")

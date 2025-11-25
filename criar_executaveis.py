@@ -51,9 +51,9 @@ def main():
     
     # Verifica se os arquivos existem
     arquivos = [
-        ('compilador.py', 'compilador_lpd'),
+        ('compilador.py', 'compilador'),
         ('maquina_virtual.py', 'maquina_virtual'),
-        ('interface.py', 'interface_lpd')
+        ('interface.py', 'interface')
     ]
     
     for script, _ in arquivos:
@@ -77,9 +77,9 @@ def main():
     if sucessos == len(arquivos):
         print("\n[OK] Todos os executáveis foram criados com sucesso!")
         print("\nExecutáveis disponíveis em:")
-        print("  - dist/compilador_lpd")
+        print("  - dist/compilador")
         print("  - dist/maquina_virtual")
-        print("  - dist/interface_lpd")
+        print("  - dist/interface")
     else:
         print("\n[AVISO] Alguns executáveis não foram criados.")
         sys.exit(1)
