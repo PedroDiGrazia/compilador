@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+ENV/
+
+# Arquivos gerados pelo compilador
+*.obj
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
